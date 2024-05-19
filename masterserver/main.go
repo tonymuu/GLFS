@@ -11,7 +11,7 @@ import (
 type MasterServer struct {
 }
 
-func (t *MasterServer) HealthCheck(args *common.HealthCheckArgs, reply *bool) error {
+func (t *MasterServer) Ping(args *common.PingArgs, reply *bool) error {
 	*reply = true
 	return nil
 }
@@ -20,7 +20,7 @@ func main() {
 	server := new(MasterServer)
 	rpc.Register(server)
 	rpc.HandleHTTP()
-	l, err := net.Listen("tcp", ":1234")
+	l, err := net.Listen("tcp", "127.0.0.1:1234")
 	if err != nil {
 		log.Fatal("listen error:", err)
 	}

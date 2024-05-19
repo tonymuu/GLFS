@@ -10,21 +10,21 @@ import (
 
 type ChunkServer struct{}
 
-func (t *ChunkServer) HealthCheck(args *common.HealthCheckArgs, reply *bool) error {
+func (t *ChunkServer) Ping(args *common.PingArgs, reply *bool) error {
 	*reply = true
 	return nil
 }
 
 func main() {
 	// ping master and join cluster
-	masterClient, err := rpc.DialHTTP("tcp", "localhost:1234")
+	masterClient, err := rpc.DialHTTP("tcp", common.GetMasterServerAddress())
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
 	// Synchronous call
-	args := &common.HealthCheckArgs{}
-	var reply int
-	err = masterClient.Call("Arith.Multiply", args, &reply)
+	args := &common.PingArgs{}
+	var reply bool
+	err = masterClient.Call("MasterServer.Ping", args, &reply)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func main() {
 	chunk := new(ChunkServer)
 	rpc.Register(chunk)
 	rpc.HandleHTTP()
-	l, err := net.Listen("tcp", ":1235")
+	l, err := net.Listen("tcp", common.GetChunkServerAddress(1))
 	if err != nil {
 		log.Fatal(err)
 	}
