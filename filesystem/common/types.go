@@ -3,6 +3,8 @@ package common
 // Arg types
 
 type PingArgs struct {
+	Id      uint8
+	Address string
 }
 
 // Arguments for client to master create file call
@@ -30,3 +32,5 @@ type CreateFileReply struct {
 
 type DeleteFileReply struct {
 }
+
+// Objects

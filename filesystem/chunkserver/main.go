@@ -1,14 +1,19 @@
 package main
 
 import (
+	"flag"
 	"glfs/common"
 	"log"
 	"net"
 	"net/http"
 	"net/rpc"
+	"strconv"
 )
 
-type ChunkServer struct{}
+type ChunkServer struct {
+	Id      uint8
+	Address string
+}
 
 func (t *ChunkServer) Ping(args *common.PingArgs, reply *bool) error {
 	*reply = true
@@ -16,13 +21,26 @@ func (t *ChunkServer) Ping(args *common.PingArgs, reply *bool) error {
 }
 
 func main() {
+	cmd := flag.String("cmd", "", "")
+	flag.Parse()
+	log.Printf("my cmd: %v\n", string(*cmd))
+
+	// Init chunk server
+	chunk := new(ChunkServer)
+	id, _ := strconv.Atoi(*cmd)
+	chunk.Id = uint8(id)
+	chunk.Address = common.GetChunkServerAddress(chunk.Id)
+
 	// ping master and join cluster
 	masterClient, err := rpc.DialHTTP("tcp", common.GetMasterServerAddress())
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
 	// Synchronous call
-	args := &common.PingArgs{}
+	args := &common.PingArgs{
+		Id:      chunk.Id,
+		Address: chunk.Address,
+	}
 	var reply bool
 	err = masterClient.Call("MasterServer.Ping", args, &reply)
 	if err != nil {
@@ -30,10 +48,9 @@ func main() {
 	}
 
 	// start serving
-	chunk := new(ChunkServer)
 	rpc.Register(chunk)
 	rpc.HandleHTTP()
-	l, err := net.Listen("tcp", common.GetChunkServerAddress(1))
+	l, err := net.Listen("tcp", chunk.Address)
 	if err != nil {
 		log.Fatal(err)
 	}

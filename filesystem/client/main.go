@@ -26,6 +26,7 @@ func (t *GLFSClient) Create(filepath string) bool {
 		log.Fatal("Cannot get file info, error: ", err)
 	}
 
+	// Call master's create to get back mapping of ChunkHandle -> ChunkServerAddr
 	fileName, fileSize := fileInfo.Name(), fileInfo.Size()
 	log.Printf("Found file with fileName: %v, fileSize: %v", fileName, fileSize)
 
@@ -35,6 +36,8 @@ func (t *GLFSClient) Create(filepath string) bool {
 		FileName:       fileName,
 		NumberOfChunks: uint8(numberOfChunks),
 	}
+	log.Printf("Calling Master.Create with args %v", *args)
+
 	var reply common.CreateFileReply
 	reply.ChunkMap = make(map[uint64]string)
 
@@ -44,6 +47,10 @@ func (t *GLFSClient) Create(filepath string) bool {
 	}
 
 	fmt.Println("Got reply from master for createFile: ", reply)
+
+	for chunkHandle, chunkServerAddr := range reply.ChunkMap {
+		// TODO: Call chunkservers with handle and chunks
+	}
 	return true
 }
 
