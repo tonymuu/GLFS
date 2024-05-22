@@ -19,7 +19,7 @@ type MasterServer struct {
 	FileMetadata map[string]*FileMetadata
 
 	// maps from chunkhandle to chunk metadata (location, expiration, etc.)
-	ChunkMetadata map[uint64]*ChunkMetadata
+	ChunkMetadata map[common.ChunkHandle]*ChunkMetadata
 }
 
 type ChunkServerMetadata struct {
@@ -30,7 +30,7 @@ type ChunkServerMetadata struct {
 
 type FileMetadata struct {
 	FileName     string
-	ChunkHandles *[]uint64
+	ChunkHandles *[]common.ChunkHandle
 }
 
 type ChunkMetadata struct {
@@ -56,13 +56,13 @@ func (t *MasterServer) Ping(args *common.PingArgs, reply *bool) error {
 }
 
 // RPC method on the MasterServer used to create a file.
-func (t *MasterServer) Create(args *common.CreateFileArgs, reply *common.CreateFileReply) error {
+func (t *MasterServer) Create(args *common.CreateFileArgsMaster, reply *common.CreateFileReplyMaster) error {
 	log.Printf("Received Master.Create call with args %v", args)
 
 	// chunkId := uint8(0)
-	reply.ChunkMap = map[uint64]string{}
+	reply.ChunkMap = map[uint8]*common.ClientChunkInfo{}
 
-	chunkHandles := make([]uint64, args.NumberOfChunks)
+	chunkHandles := make([]common.ChunkHandle, args.NumberOfChunks)
 	t.FileMetadata[args.FileName] = &FileMetadata{
 		FileName:     args.FileName,
 		ChunkHandles: &chunkHandles,
@@ -89,7 +89,10 @@ func (t *MasterServer) Create(args *common.CreateFileArgs, reply *common.CreateF
 		t.ChunkMetadata[chunkHandle].Location = chunkLocation
 		(*t.FileMetadata[args.FileName].ChunkHandles)[chunkId] = chunkHandle
 
-		reply.ChunkMap[chunkHandle] = chunkLocation
+		reply.ChunkMap[chunkId] = &common.ClientChunkInfo{
+			Location:    chunkLocation,
+			ChunkHandle: chunkHandle,
+		}
 	}
 
 	log.Printf(`Finished saving file/chunk data at master.
@@ -100,14 +103,14 @@ func (t *MasterServer) Create(args *common.CreateFileArgs, reply *common.CreateF
 	return nil
 }
 
-func (t *MasterServer) Delete(args *common.DeleteFileArgs, reply *common.DeleteFileReply) error {
+func (t *MasterServer) Delete(args *common.DeleteFileArgsMaster, reply *common.DeleteFileReplyMaster) error {
 	return nil
 }
 
 func (t *MasterServer) Initialize() {
 	t.ChunkServers = map[uint8]*ChunkServerMetadata{}
 	t.FileMetadata = map[string]*FileMetadata{}
-	t.ChunkMetadata = map[uint64]*ChunkMetadata{}
+	t.ChunkMetadata = map[common.ChunkHandle]*ChunkMetadata{}
 }
 
 func (t *MasterServer) removeExpiredChunkServers() {
@@ -127,10 +130,10 @@ func mapChunkIdToChunkServerIndex(chunkId uint8, chunkServerIds []uint8) uint8 {
 	return chunkServerIds[index]
 }
 
-func getChunkHandle(chunkName string) uint64 {
+func getChunkHandle(chunkName string) common.ChunkHandle {
 	h := fnv.New64a()
 	h.Write([]byte(chunkName))
-	return h.Sum64()
+	return common.ChunkHandle(h.Sum64())
 }
 
 func main() {

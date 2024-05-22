@@ -11,3 +11,7 @@ func GetMasterServerAddress() string {
 func GetChunkServerAddress(id uint8) string {
 	return fmt.Sprintf(ChunkServerAddress, id)
 }
+
+func GetRootDir() string {
+	return "/home/mutony/Projects/glfs/filesystem"
+}

@@ -26,32 +26,60 @@ func (t *GLFSClient) Create(filepath string) bool {
 		log.Fatal("Cannot get file info, error: ", err)
 	}
 
-	// Call master's create to get back mapping of ChunkHandle -> ChunkServerAddr
 	fileName, fileSize := fileInfo.Name(), fileInfo.Size()
 	log.Printf("Found file with fileName: %v, fileSize: %v", fileName, fileSize)
 
+	// Call master's create to get back mapping of ChunkHandle -> ChunkServerAddr
 	numberOfChunks := fileSize / common.ChunkSize
 
-	args := &common.CreateFileArgs{
+	masterArgs := &common.CreateFileArgsMaster{
 		FileName:       fileName,
 		NumberOfChunks: uint8(numberOfChunks),
 	}
-	log.Printf("Calling Master.Create with args %v", *args)
+	log.Printf("Calling Master.Create with args %v", *masterArgs)
 
-	var reply common.CreateFileReply
-	reply.ChunkMap = make(map[uint64]string)
+	var reply common.CreateFileReplyMaster
+	reply.ChunkMap = make(map[uint8]*common.ClientChunkInfo)
 
-	err = t.masterClient.Call("MasterServer.Create", args, &reply)
+	err = t.masterClient.Call("MasterServer.Create", masterArgs, &reply)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Println("Got reply from master for createFile: ", reply)
 
-	for chunkHandle, chunkServerAddr := range reply.ChunkMap {
-		// TODO: Call chunkservers with handle and chunks
+	chunk := make([]byte, common.ChunkSize)
+	file, _ := os.Open(filepath)
+	for chunkIndex, chunkInfo := range reply.ChunkMap {
+		// read the current chunk, based on chunkIndex and chunkSize
+		file.ReadAt(chunk, int64(chunkIndex)*common.ChunkSize)
+
+		// Call chunkservers with handle and chunks
+		args := &common.CreateFileArgsChunk{
+			ChunkHandle: chunkInfo.ChunkHandle,
+			Content:     chunk,
+		}
+
+		t.sendFileToChunkServer(chunkInfo.Location, args)
 	}
 	return true
+}
+
+func (t *GLFSClient) sendFileToChunkServer(location string, args *common.CreateFileArgsChunk) {
+	// connect to master server using tcp
+	chunkClient, err := rpc.DialHTTP("tcp", location)
+	if err != nil {
+		log.Fatal("Connecting to chunk client failed: ", err)
+	}
+
+	var reply bool
+
+	log.Printf("Uploading file to chunkServer at %v", location)
+	err = chunkClient.Call("ChunkServer.Create", args, &reply)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Received FileUploadReply from chunkServer at %v and reply %v", location, reply)
 }
 
 // Initialize client with default configs
@@ -61,7 +89,7 @@ func (t *GLFSClient) Initialize() {
 	if err != nil {
 		log.Fatal("Connecting to master client failed: ", err)
 	}
-	// save the connection
+	// persist the connection
 	t.masterClient = masterClient
 }
 
@@ -69,5 +97,5 @@ func main() {
 	// test code for now
 	client := GLFSClient{}
 	client.Initialize()
-	client.Create("/home/mutony/Projects/glfs/filesystem/tmp/test_0.dat")
+	client.Create(fmt.Sprintf("%v/tmp/test_0.dat", common.GetRootDir()))
 }

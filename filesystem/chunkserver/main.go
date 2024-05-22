@@ -20,6 +20,13 @@ func (t *ChunkServer) Ping(args *common.PingArgs, reply *bool) error {
 	return nil
 }
 
+func (t *ChunkServer) Create(args *common.CreateFileArgsChunk, reply *bool) error {
+	log.Printf("Received Chunk.Create call with chunkHandle %v and chunkSize %v", args.ChunkHandle, len(args.Content))
+
+	*reply = true
+	return nil
+}
+
 func main() {
 	cmd := flag.String("cmd", "", "")
 	flag.Parse()
