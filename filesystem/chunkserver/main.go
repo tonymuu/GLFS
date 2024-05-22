@@ -2,11 +2,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"glfs/common"
 	"log"
 	"net"
 	"net/http"
 	"net/rpc"
+	"os"
 	"strconv"
 )
 
@@ -22,6 +24,12 @@ func (t *ChunkServer) Ping(args *common.PingArgs, reply *bool) error {
 
 func (t *ChunkServer) Create(args *common.CreateFileArgsChunk, reply *bool) error {
 	log.Printf("Received Chunk.Create call with chunkHandle %v and chunkSize %v", args.ChunkHandle, len(args.Content))
+
+	filePath := common.GetPath("chunk", fmt.Sprint(args.ChunkHandle))
+	err := os.WriteFile(filePath, args.Content, 0644)
+	common.Check(err)
+
+	log.Printf("Successfully saved local %v", filePath)
 
 	*reply = true
 	return nil

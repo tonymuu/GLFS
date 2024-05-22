@@ -50,7 +50,9 @@ func (t *GLFSClient) Create(filepath string) bool {
 
 	chunk := make([]byte, common.ChunkSize)
 	file, _ := os.Open(filepath)
+	defer file.Close()
 	for chunkIndex, chunkInfo := range reply.ChunkMap {
+		// Chunk the files into chunks of fixed size
 		// read the current chunk, based on chunkIndex and chunkSize
 		file.ReadAt(chunk, int64(chunkIndex)*common.ChunkSize)
 
@@ -97,5 +99,5 @@ func main() {
 	// test code for now
 	client := GLFSClient{}
 	client.Initialize()
-	client.Create(fmt.Sprintf("%v/tmp/test_0.dat", common.GetRootDir()))
+	client.Create(fmt.Sprintf("%v/client/test_0.dat", common.GetRootDir()))
 }
