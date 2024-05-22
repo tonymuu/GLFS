@@ -24,7 +24,7 @@ func (t *ChunkServer) Ping(args *common.PingArgs, reply *bool) error {
 func (t *ChunkServer) Create(args *common.CreateFileArgsChunk, reply *bool) error {
 	log.Printf("Received Chunk.Create call with chunkHandle %v and chunkSize %v", args.ChunkHandle, len(args.Content))
 
-	filePath := common.GetPath("chunk", fmt.Sprint(args.ChunkHandle))
+	filePath := common.GetTmpPath("chunk", fmt.Sprint(args.ChunkHandle))
 	err := os.WriteFile(filePath, args.Content, 0644)
 	common.Check(err)
 

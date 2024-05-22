@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"glfs/common"
 	"log"
 	"net/rpc"
@@ -46,7 +45,7 @@ func (t *GLFSClient) Create(filepath string) bool {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Got reply from master for createFile: ", reply)
+	log.Printf("Got reply from master for createFile: ", reply)
 
 	chunk := make([]byte, common.ChunkSize)
 	file, _ := os.Open(filepath)
@@ -99,5 +98,5 @@ func InitializeClient() {
 	// test code for now
 	client := GLFSClient{}
 	client.Initialize()
-	client.Create(fmt.Sprintf("%v/client/test_0.dat", common.GetRootDir()))
+	client.Create(common.GetTmpPath("client", "test_0.dat"))
 }
