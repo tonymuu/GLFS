@@ -1,4 +1,4 @@
-package main
+package masterserver
 
 import (
 	"fmt"
@@ -136,7 +136,7 @@ func getChunkHandle(chunkName string) common.ChunkHandle {
 	return common.ChunkHandle(h.Sum64())
 }
 
-func main() {
+func InitializeMasterServer() {
 	server := new(MasterServer)
 	server.Initialize()
 

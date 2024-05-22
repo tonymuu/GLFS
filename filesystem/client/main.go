@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"fmt"
@@ -95,7 +95,7 @@ func (t *GLFSClient) Initialize() {
 	t.masterClient = masterClient
 }
 
-func main() {
+func InitializeClient() {
 	// test code for now
 	client := GLFSClient{}
 	client.Initialize()

@@ -1,7 +1,6 @@
-package main
+package chunkserver
 
 import (
-	"flag"
 	"fmt"
 	"glfs/common"
 	"log"
@@ -35,14 +34,10 @@ func (t *ChunkServer) Create(args *common.CreateFileArgsChunk, reply *bool) erro
 	return nil
 }
 
-func main() {
-	cmd := flag.String("cmd", "", "")
-	flag.Parse()
-	log.Printf("my cmd: %v\n", string(*cmd))
-
+func InitializeChunkServer(idStr *string) {
 	// Init chunk server
 	chunk := new(ChunkServer)
-	id, _ := strconv.Atoi(*cmd)
+	id, _ := strconv.Atoi(*idStr)
 	chunk.Id = uint8(id)
 	chunk.Address = common.GetChunkServerAddress(chunk.Id)
 
