@@ -20,6 +20,14 @@ type DeleteFileArgsMaster struct {
 	FileName string
 }
 
+type ReadFileArgsMaster struct {
+	FileName string
+}
+
+type ReadFileArgsChunk struct {
+	ChunkHandle
+}
+
 type CreateFileArgsChunk struct {
 	ChunkHandle ChunkHandle
 	Content     []byte
@@ -40,6 +48,14 @@ type CreateFileReplyMaster struct {
 }
 
 type DeleteFileReplyMaster struct {
+}
+
+type ReadFileReplyMaster struct {
+	Chunks []ClientChunkInfo
+}
+
+type ReadFileReplyChunk struct {
+	Content []byte
 }
 
 // Objects

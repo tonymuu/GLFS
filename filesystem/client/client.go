@@ -83,6 +83,42 @@ func (t *GLFSClient) Delete(filename string) bool {
 	return reply
 }
 
+func (t *GLFSClient) Read(filename string, outputPath string) []byte {
+	// First get chunkHandles and chunkLocations from master
+	masterArgs := &common.ReadFileArgsMaster{
+		FileName: filename,
+	}
+	log.Printf("Calling Master.Read with args %v", *masterArgs)
+
+	var reply common.ReadFileReplyMaster
+
+	err := t.masterClient.Call("MasterServer.Read", masterArgs, &reply)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Got reply from master for read: %v", reply)
+
+	// open the file and start appending in order
+	file, err := os.Create(outputPath)
+	if err != nil {
+		log.Fatalf("Error creating output file at %v", outputPath)
+	}
+	defer file.Close()
+
+	// Then for each chunk handle/location, get chunk bytes from chunkServers
+	for i, chunkInfo := range reply.Chunks {
+		args := &common.ReadFileArgsChunk{
+			ChunkHandle: chunkInfo.ChunkHandle,
+		}
+		content := t.readFileFromChunkServer(chunkInfo.Location, args)
+		offset := i * common.ChunkSize
+		file.WriteAt(content, int64(offset))
+	}
+
+	return nil
+}
+
 func (t *GLFSClient) sendFileToChunkServer(location string, args *common.CreateFileArgsChunk) {
 	// connect to master server using tcp
 	chunkClient, err := rpc.DialHTTP("tcp", location)
@@ -98,6 +134,25 @@ func (t *GLFSClient) sendFileToChunkServer(location string, args *common.CreateF
 		log.Fatal(err)
 	}
 	log.Printf("Received FileUploadReply from chunkServer at %v and reply %v", location, reply)
+}
+
+func (t *GLFSClient) readFileFromChunkServer(location string, args *common.ReadFileArgsChunk) []byte {
+	// connect to master server using tcp
+	chunkClient, err := rpc.DialHTTP("tcp", location)
+	if err != nil {
+		log.Fatal("Connecting to chunk client failed: ", err)
+	}
+
+	var reply common.ReadFileReplyChunk
+
+	log.Printf("Downloading file from chunkServer at %v", location)
+	err = chunkClient.Call("ChunkServer.Read", args, &reply)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Received FileDownloadReply from chunkServer at %v and content length", location, len(reply.Content))
+
+	return reply.Content
 }
 
 // Initialize client with default configs

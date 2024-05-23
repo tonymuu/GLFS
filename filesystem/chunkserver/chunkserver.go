@@ -34,6 +34,19 @@ func (t *ChunkServer) Create(args *common.CreateFileArgsChunk, reply *bool) erro
 	return nil
 }
 
+func (t *ChunkServer) Read(args *common.ReadFileArgsChunk, reply *common.ReadFileReplyChunk) error {
+	log.Printf("Received Chunk.Create call with chunkHandle %v", args.ChunkHandle)
+
+	filePath := common.GetTmpPath("chunk", fmt.Sprint(args.ChunkHandle))
+	content, err := os.ReadFile(filePath)
+	common.Check(err)
+
+	log.Printf("Successfully read from local %v", filePath)
+
+	reply.Content = content
+	return nil
+}
+
 func InitializeChunkServer(idStr *string) {
 	// Init chunk server
 	chunk := new(ChunkServer)

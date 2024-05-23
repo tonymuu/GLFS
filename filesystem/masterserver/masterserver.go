@@ -131,6 +131,27 @@ func (t *MasterServer) Delete(args *common.DeleteFileArgsMaster, reply *bool) er
 	return nil
 }
 
+func (t *MasterServer) Read(args *common.ReadFileArgsMaster, reply *common.ReadFileReplyMaster) error {
+	log.Printf("Received Master.Delete call with args %v", args)
+	fileInfo, found := t.FileMetadata[args.FileName]
+
+	if !found {
+		return fmt.Errorf("file not found with name %v", args.FileName)
+	}
+
+	reply.Chunks = make([]common.ClientChunkInfo, len(*fileInfo.ChunkHandles))
+	for i, chunkHandle := range *fileInfo.ChunkHandles {
+		reply.Chunks[i] = common.ClientChunkInfo{
+			ChunkHandle: chunkHandle,
+			Location:    t.ChunkMetadata[chunkHandle].Location,
+		}
+	}
+
+	log.Printf("Finished reading file at master. Chunks in reply: %v", reply.Chunks)
+
+	return nil
+}
+
 func (t *MasterServer) Initialize() {
 	t.ChunkServers = map[uint8]*ChunkServerMetadata{}
 	t.FileMetadata = map[string]*FileMetadata{}
