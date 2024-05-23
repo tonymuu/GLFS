@@ -52,5 +52,60 @@ func TestPing_ShouldInsertChunkServerMetadata(t *testing.T) {
 	if val.TimeStampLastPing == 0 {
 		t.Fail()
 	}
+}
 
+func TestDelete_ShouldChangeHideFile(t *testing.T) {
+	server := MasterServer{}
+	server.Initialize()
+
+	filename := "some_file"
+	server.FileMetadata[filename] = &FileMetadata{
+		FileName: filename,
+	}
+
+	var reply bool
+	err := server.Delete(&common.DeleteFileArgsMaster{
+		FileName: filename,
+	}, &reply)
+
+	if err != nil {
+		t.Fail()
+	}
+	if server.FileMetadata[filename].FileName[0] != '.' {
+		t.Fail()
+	}
+}
+
+func TestDelete_ShouldSetDeletionTimeStamp(t *testing.T) {
+	server := MasterServer{}
+	server.Initialize()
+
+	filename := "some_file"
+	server.FileMetadata[filename] = &FileMetadata{}
+
+	var reply bool
+	err := server.Delete(&common.DeleteFileArgsMaster{
+		FileName: filename,
+	}, &reply)
+
+	if err != nil {
+		t.Fail()
+	}
+	if server.FileMetadata[filename].DeletionTimeStamp == 0 {
+		t.Fail()
+	}
+}
+
+func TestDelete_ShouldReturnErrorWhenFileNotFound(t *testing.T) {
+	server := MasterServer{}
+	server.Initialize()
+
+	var reply bool
+	err := server.Delete(&common.DeleteFileArgsMaster{
+		FileName: "imaginry_name",
+	}, &reply)
+
+	if err == nil || reply {
+		t.Fail()
+	}
 }

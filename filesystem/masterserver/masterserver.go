@@ -31,6 +31,8 @@ type ChunkServerMetadata struct {
 type FileMetadata struct {
 	FileName     string
 	ChunkHandles *[]common.ChunkHandle
+	// Unix timestamp indicating the time this file should be deleted physically.
+	DeletionTimeStamp int64
 }
 
 type ChunkMetadata struct {
@@ -103,7 +105,23 @@ func (t *MasterServer) Create(args *common.CreateFileArgsMaster, reply *common.C
 	return nil
 }
 
-func (t *MasterServer) Delete(args *common.DeleteFileArgsMaster, reply *common.DeleteFileReplyMaster) error {
+// Upon receiving the Delete call, master will only immediately mark the file as to be deleted (with a deletion timestamp).
+// Files are retained for 3 days from the second it is marked for deletion (TODO: make this configurable).
+// The deletion of the physical copies will be handled by the garbage collection thread and chunkservers.
+func (t *MasterServer) Delete(args *common.DeleteFileArgsMaster, reply *bool) error {
+	fileInfo, found := t.FileMetadata[args.FileName]
+
+	if !found {
+		*reply = false
+		return fmt.Errorf("file not found with name %v", args.FileName)
+	}
+
+	// make the file hidden by adding a period before its name
+	fileInfo.FileName = fmt.Sprintf(".%v", fileInfo.FileName)
+	// set deletion timestamp
+	fileInfo.DeletionTimeStamp = time.Now().Add(time.Hour * 3 * 24).Unix()
+
+	*reply = true
 	return nil
 }
 

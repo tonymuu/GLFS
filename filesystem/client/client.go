@@ -45,7 +45,7 @@ func (t *GLFSClient) Create(filepath string) bool {
 		log.Fatal(err)
 	}
 
-	log.Printf("Got reply from master for createFile: ", reply)
+	log.Printf("Got reply from master for createFile: %v", reply)
 
 	chunk := make([]byte, common.ChunkSize)
 	file, _ := os.Open(filepath)
@@ -64,6 +64,23 @@ func (t *GLFSClient) Create(filepath string) bool {
 		t.sendFileToChunkServer(chunkInfo.Location, args)
 	}
 	return true
+}
+
+func (t *GLFSClient) Delete(filepath string) bool {
+	masterArgs := &common.DeleteFileArgsMaster{
+		FileName: filepath,
+	}
+	log.Printf("Calling Master.Delete with args %v", *masterArgs)
+
+	var reply bool
+
+	err := t.masterClient.Call("MasterServer.Delete", masterArgs, &reply)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Got reply from master for createFile: %v", reply)
+	return reply
 }
 
 func (t *GLFSClient) sendFileToChunkServer(location string, args *common.CreateFileArgsChunk) {
