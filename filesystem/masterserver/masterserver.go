@@ -125,7 +125,7 @@ func (t *MasterServer) Delete(args *common.DeleteFileArgsMaster, reply *bool) er
 	log.Printf(`Finished marking file for deletion at master.
 	FileMetadata: %v
 	ChunkMetadata: %v`,
-		t.FileMetadata, t.ChunkMetadata)
+		*t.FileMetadata[args.FileName], t.ChunkMetadata)
 
 	*reply = true
 	return nil

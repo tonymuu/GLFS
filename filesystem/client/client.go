@@ -79,7 +79,7 @@ func (t *GLFSClient) Delete(filename string) bool {
 		log.Fatal(err)
 	}
 
-	log.Printf("Got reply from master for createFile: %v", reply)
+	log.Printf("Got reply from master for delete: %v", reply)
 	return reply
 }
 

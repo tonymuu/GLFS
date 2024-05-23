@@ -15,6 +15,9 @@ func main() {
 	role := flag.String("role", "", "Can only be master, chunk, or client")
 	chunkId := flag.String("id", "", "ChunkServerId")
 	flag.Parse()
+
+	// *role = "master"
+
 	if len(*role) == 0 {
 		log.Fatal("A role must be specified.")
 	}
