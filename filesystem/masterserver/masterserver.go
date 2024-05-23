@@ -109,6 +109,7 @@ func (t *MasterServer) Create(args *common.CreateFileArgsMaster, reply *common.C
 // Files are retained for 3 days from the second it is marked for deletion (TODO: make this configurable).
 // The deletion of the physical copies will be handled by the garbage collection thread and chunkservers.
 func (t *MasterServer) Delete(args *common.DeleteFileArgsMaster, reply *bool) error {
+	log.Printf("Received Master.Delete call with args %v", args)
 	fileInfo, found := t.FileMetadata[args.FileName]
 
 	if !found {
@@ -120,6 +121,11 @@ func (t *MasterServer) Delete(args *common.DeleteFileArgsMaster, reply *bool) er
 	fileInfo.FileName = fmt.Sprintf(".%v", fileInfo.FileName)
 	// set deletion timestamp
 	fileInfo.DeletionTimeStamp = time.Now().Add(time.Hour * 3 * 24).Unix()
+
+	log.Printf(`Finished marking file for deletion at master.
+	FileMetadata: %v
+	ChunkMetadata: %v`,
+		t.FileMetadata, t.ChunkMetadata)
 
 	*reply = true
 	return nil

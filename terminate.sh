@@ -1,0 +1,1 @@
+kill $(ps aux | grep [g]lfs | awk '{print $2}')

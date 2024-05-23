@@ -26,9 +26,7 @@ echo "chunk id 2 started"
 # sleep to make sure all servers are ready
 sleep 3
 
-echo "Starting client"
-./build/glfs -role client -id 2
-echo "client started"
-
-# kill $(ps aux | grep [g]o | awk '{print $2}')
-# kill $(ps aux | grep [g]lfs | awk '{print $2}')
+# Run separate application to make client calls
+# echo "Starting client"
+# ./build/glfs -role client -id 2
+# echo "client started"

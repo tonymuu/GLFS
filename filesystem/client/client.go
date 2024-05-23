@@ -66,9 +66,9 @@ func (t *GLFSClient) Create(filepath string) bool {
 	return true
 }
 
-func (t *GLFSClient) Delete(filepath string) bool {
+func (t *GLFSClient) Delete(filename string) bool {
 	masterArgs := &common.DeleteFileArgsMaster{
-		FileName: filepath,
+		FileName: filename,
 	}
 	log.Printf("Calling Master.Delete with args %v", *masterArgs)
 
@@ -113,7 +113,4 @@ func (t *GLFSClient) Initialize() {
 
 func InitializeClient() {
 	// test code for now
-	client := GLFSClient{}
-	client.Initialize()
-	client.Create(common.GetTmpPath("client", "test_0.dat"))
 }
