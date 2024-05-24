@@ -24,7 +24,7 @@ func (t *ChunkServer) Ping(args *common.PingArgs, reply *bool) error {
 func (t *ChunkServer) Create(args *common.CreateFileArgsChunk, reply *bool) error {
 	log.Printf("Received Chunk.Create call with chunkHandle %v and chunkSize %v", args.ChunkHandle, len(args.Content))
 
-	filePath := common.GetTmpPath("chunk", fmt.Sprint(args.ChunkHandle))
+	filePath := common.GetTmpPath(fmt.Sprintf("chunk/%v", t.Id), fmt.Sprint(args.ChunkHandle))
 	err := os.WriteFile(filePath, args.Content, 0644)
 	common.Check(err)
 
@@ -53,6 +53,11 @@ func InitializeChunkServer(idStr *string) {
 	id, _ := strconv.Atoi(*idStr)
 	chunk.Id = uint8(id)
 	chunk.Address = common.GetChunkServerAddress(chunk.Id)
+
+	// Create a directory for holding all chunks with chunkHandle as file names
+	dirPath := common.GetTmpPath(fmt.Sprintf("chunk/%v", chunk.Id), "")
+	err := os.MkdirAll(dirPath, os.ModePerm)
+	common.Check(err)
 
 	// ping master and join cluster
 	masterClient, err := rpc.DialHTTP("tcp", common.GetMasterServerAddress())
