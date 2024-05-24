@@ -15,13 +15,14 @@ echo "master started."
 # Sleep to ensure master is started 
 sleep 1
 
-echo "Starting chunk id 1"
-./build/glfs -role chunk -id 1 &
-echo "chunk id 1 started"
-
-echo "Starting chunk id 2"
-./build/glfs -role chunk -id 2 &
-echo "chunk id 2 started"
+# Start n chunk servers use a loop
+n=7
+for i in `seq 1 $n`
+do 
+    echo "Starting chunk id $i"
+    ./build/glfs -role chunk -id $i &
+    echo "chunk id $i started"
+done 
 
 # sleep to make sure all servers are ready
 sleep 3
