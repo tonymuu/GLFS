@@ -1,0 +1,32 @@
+syntax = "proto3";
+package masterserver;
+
+option go_package = "/pb";
+
+message MasterServer {    
+	// manages chunk server information
+	map<uint32, ChunkServer> ChunkServers = 1; 
+
+	// maps from filename to a list of chunk handles
+	map<string, File> FileMetadata = 2;
+
+	// maps from chunkhandle to chunk metadata (location, expiration, etc.)
+	map<uint64, Chunk> ChunkMetadata = 3;
+}
+
+message ChunkServer {
+    uint32 ServerId = 1;
+    string ServerAddress = 2;
+    int64 TimeStampLastPing = 3;
+}
+
+message File {
+    string FileName = 1;
+    repeated uint64 ChunkHandles = 2;
+    // Unix timestamp indicating the time this file should be deleted physically.
+    int64 DeletionTimeStamp = 3; 
+}
+
+message Chunk {
+    string Location = 1;
+}

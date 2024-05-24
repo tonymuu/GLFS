@@ -27,7 +27,4 @@ done
 # sleep to make sure all servers are ready
 sleep 3
 
-# Run separate application to make client calls
-# echo "Starting client"
-# ./build/glfs -role client -id 2
-# echo "client started"
+# protoc -I=. --go_out=. ./master_checkpoint.proto

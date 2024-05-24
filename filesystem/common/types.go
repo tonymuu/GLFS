@@ -1,18 +1,18 @@
 package common
 
-type ChunkHandle uint64
+// type ChunkHandle uint64
 
 // Arg types
 
 type PingArgs struct {
-	Id      uint8
+	Id      uint32
 	Address string
 }
 
 // Arguments for client to master create file call
 type CreateFileArgsMaster struct {
 	FileName       string
-	NumberOfChunks uint8
+	NumberOfChunks uint32
 }
 
 // Arguments for client to master delete file call
@@ -25,11 +25,11 @@ type ReadFileArgsMaster struct {
 }
 
 type ReadFileArgsChunk struct {
-	ChunkHandle
+	ChunkHandle uint64
 }
 
 type CreateFileArgsChunk struct {
-	ChunkHandle ChunkHandle
+	ChunkHandle uint64
 	Content     []byte
 }
 
@@ -44,7 +44,7 @@ type ReadFileArgs struct {
 
 // Reply from client to master create file call
 type CreateFileReplyMaster struct {
-	ChunkMap map[uint8]*ClientChunkInfo
+	ChunkMap map[uint32]*ClientChunkInfo
 }
 
 type DeleteFileReplyMaster struct {
@@ -60,6 +60,6 @@ type ReadFileReplyChunk struct {
 
 // Objects
 type ClientChunkInfo struct {
-	ChunkHandle ChunkHandle
+	ChunkHandle uint64
 	Location    string
 }

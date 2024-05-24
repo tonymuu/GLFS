@@ -3,52 +3,34 @@ package masterserver
 import (
 	"fmt"
 	"glfs/common"
+	"glfs/protobufs/pb"
 	"hash/fnv"
 	"log"
 	"net"
 	"net/http"
 	"net/rpc"
+	"os"
 	"time"
+
+	"google.golang.org/protobuf/proto"
 )
 
+var persistedStateFile *os.File
+
 type MasterServer struct {
-	// manages chunk server information
-	ChunkServers map[uint8]*ChunkServerMetadata
-
-	// maps from filename to a list of chunk handles
-	FileMetadata map[string]*FileMetadata
-
-	// maps from chunkhandle to chunk metadata (location, expiration, etc.)
-	ChunkMetadata map[common.ChunkHandle]*ChunkMetadata
-}
-
-type ChunkServerMetadata struct {
-	ServerId          uint8
-	ServerAddress     string
-	TimeStampLastPing int64
-}
-
-type FileMetadata struct {
-	FileName     string
-	ChunkHandles *[]common.ChunkHandle
-	// Unix timestamp indicating the time this file should be deleted physically.
-	DeletionTimeStamp int64
-}
-
-type ChunkMetadata struct {
-	Location string
+	State pb.MasterServer
 }
 
 func (t *MasterServer) Ping(args *common.PingArgs, reply *bool) error {
 	log.Printf("Master.Ping called with args %v", args)
 
-	t.ChunkServers[args.Id] = &ChunkServerMetadata{
+	t.State.ChunkServers[args.Id] = &pb.ChunkServer{
 		ServerId:          args.Id,
 		ServerAddress:     args.Address,
 		TimeStampLastPing: time.Now().Unix(),
 	}
 
-	log.Printf("Updated ChunkServers info. New state: %v", t.ChunkServers)
+	log.Printf("Updated ChunkServers info. New state: %v", t.State.ChunkServers)
 
 	// Expired chunk servers are presumed dead, so we remove them.
 	t.removeExpiredChunkServers()
@@ -61,25 +43,25 @@ func (t *MasterServer) Ping(args *common.PingArgs, reply *bool) error {
 func (t *MasterServer) Create(args *common.CreateFileArgsMaster, reply *common.CreateFileReplyMaster) error {
 	log.Printf("Received Master.Create call with args %v", args)
 
-	// chunkId := uint8(0)
-	reply.ChunkMap = map[uint8]*common.ClientChunkInfo{}
+	// chunkId := uint32(0)
+	reply.ChunkMap = map[uint32]*common.ClientChunkInfo{}
 
-	chunkHandles := make([]common.ChunkHandle, args.NumberOfChunks)
-	t.FileMetadata[args.FileName] = &FileMetadata{
+	chunkHandles := make([]uint64, args.NumberOfChunks)
+	t.State.FileMetadata[args.FileName] = &pb.File{
 		FileName:     args.FileName,
-		ChunkHandles: &chunkHandles,
+		ChunkHandles: chunkHandles,
 	}
 
-	chunkServerIds := make([]uint8, len(t.ChunkServers))
+	chunkServerIds := make([]uint32, len(t.State.ChunkServers))
 	i := 0
-	for chunkServerId := range t.ChunkServers {
+	for chunkServerId := range t.State.ChunkServers {
 		chunkServerIds[i] = chunkServerId
 		i++
 	}
 
 	for chunkId := range args.NumberOfChunks {
 		// Get chunkServer address
-		chunkServer := t.ChunkServers[mapChunkIdToChunkServerIndex(chunkId, chunkServerIds)]
+		chunkServer := t.State.ChunkServers[mapChunkIdToChunkServerIndex(chunkId, chunkServerIds)]
 		chunkLocation := chunkServer.ServerAddress
 
 		// compute chunkHandle
@@ -87,9 +69,9 @@ func (t *MasterServer) Create(args *common.CreateFileArgsMaster, reply *common.C
 		chunkHandle := getChunkHandle(chunkName)
 
 		// Save this information
-		t.ChunkMetadata[chunkHandle] = &ChunkMetadata{}
-		t.ChunkMetadata[chunkHandle].Location = chunkLocation
-		(*t.FileMetadata[args.FileName].ChunkHandles)[chunkId] = chunkHandle
+		t.State.ChunkMetadata[chunkHandle] = &pb.Chunk{}
+		t.State.ChunkMetadata[chunkHandle].Location = chunkLocation
+		(t.State.FileMetadata[args.FileName].ChunkHandles)[chunkId] = chunkHandle
 
 		reply.ChunkMap[chunkId] = &common.ClientChunkInfo{
 			Location:    chunkLocation,
@@ -100,7 +82,7 @@ func (t *MasterServer) Create(args *common.CreateFileArgsMaster, reply *common.C
 	log.Printf(`Finished saving file/chunk data at master.
 	FileMetadata: %v
 	ChunkMetadata: %v`,
-		t.FileMetadata, t.ChunkMetadata)
+		t.State.FileMetadata, t.State.ChunkMetadata)
 
 	return nil
 }
@@ -110,7 +92,7 @@ func (t *MasterServer) Create(args *common.CreateFileArgsMaster, reply *common.C
 // The deletion of the physical copies will be handled by the garbage collection thread and chunkservers.
 func (t *MasterServer) Delete(args *common.DeleteFileArgsMaster, reply *bool) error {
 	log.Printf("Received Master.Delete call with args %v", args)
-	fileInfo, found := t.FileMetadata[args.FileName]
+	fileInfo, found := t.State.FileMetadata[args.FileName]
 
 	if !found {
 		*reply = false
@@ -125,7 +107,7 @@ func (t *MasterServer) Delete(args *common.DeleteFileArgsMaster, reply *bool) er
 	log.Printf(`Finished marking file for deletion at master.
 	FileMetadata: %v
 	ChunkMetadata: %v`,
-		*t.FileMetadata[args.FileName], t.ChunkMetadata)
+		t.State.FileMetadata[args.FileName], t.State.ChunkMetadata)
 
 	*reply = true
 	return nil
@@ -133,17 +115,17 @@ func (t *MasterServer) Delete(args *common.DeleteFileArgsMaster, reply *bool) er
 
 func (t *MasterServer) Read(args *common.ReadFileArgsMaster, reply *common.ReadFileReplyMaster) error {
 	log.Printf("Received Master.Delete call with args %v", args)
-	fileInfo, found := t.FileMetadata[args.FileName]
+	fileInfo, found := t.State.FileMetadata[args.FileName]
 
 	if !found {
 		return fmt.Errorf("file not found with name %v", args.FileName)
 	}
 
-	reply.Chunks = make([]common.ClientChunkInfo, len(*fileInfo.ChunkHandles))
-	for i, chunkHandle := range *fileInfo.ChunkHandles {
+	reply.Chunks = make([]common.ClientChunkInfo, len(fileInfo.ChunkHandles))
+	for i, chunkHandle := range fileInfo.ChunkHandles {
 		reply.Chunks[i] = common.ClientChunkInfo{
 			ChunkHandle: chunkHandle,
-			Location:    t.ChunkMetadata[chunkHandle].Location,
+			Location:    t.State.ChunkMetadata[chunkHandle].Location,
 		}
 	}
 
@@ -153,32 +135,70 @@ func (t *MasterServer) Read(args *common.ReadFileArgsMaster, reply *common.ReadF
 }
 
 func (t *MasterServer) Initialize() {
-	t.ChunkServers = map[uint8]*ChunkServerMetadata{}
-	t.FileMetadata = map[string]*FileMetadata{}
-	t.ChunkMetadata = map[common.ChunkHandle]*ChunkMetadata{}
+	t.State.ChunkServers = map[uint32]*pb.ChunkServer{}
+	t.State.FileMetadata = map[string]*pb.File{}
+	t.State.ChunkMetadata = map[uint64]*pb.Chunk{}
+
+	// On master start, it should check to see if there is any old state.
+	stateDir := common.GetTmpPath("master", "")
+	err := os.MkdirAll(stateDir, os.ModePerm)
+	common.Check(err)
+
+	persistedStateFile, err = os.OpenFile(fmt.Sprintf("%v/state.backup", stateDir), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	common.Check(err)
+
+	t.recoverState()
 }
 
 func (t *MasterServer) removeExpiredChunkServers() {
 	expiration := time.Now().Unix() - common.ChunkServerExpirationTimeSeconds
 	// scan and remove expired chunkServers
-	for key, val := range t.ChunkServers {
+	for key, val := range t.State.ChunkServers {
 		// remove expired chunkServers
 		if val.TimeStampLastPing < expiration {
 			log.Printf("ChunkServer ID %v has expired with LastPingTS %v, currentTS %v", key, val.TimeStampLastPing, expiration)
-			delete(t.ChunkServers, key)
+			delete(t.State.ChunkServers, key)
 		}
 	}
 }
 
-func mapChunkIdToChunkServerIndex(chunkId uint8, chunkServerIds []uint8) uint8 {
-	index := chunkId % uint8(len(chunkServerIds))
+// Serialize to protobuf
+func (t *MasterServer) flushState() error {
+	out, err := proto.Marshal(&t.State)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile("", out, 0644); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Deserialize from protobuf
+func (t *MasterServer) recoverState() error {
+	in, err := os.ReadFile("")
+	if err != nil {
+		return err
+	}
+
+	t.State = pb.MasterServer{}
+	if err := proto.Unmarshal(in, &t.State); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func mapChunkIdToChunkServerIndex(chunkId uint32, chunkServerIds []uint32) uint32 {
+	index := chunkId % uint32(len(chunkServerIds))
 	return chunkServerIds[index]
 }
 
-func getChunkHandle(chunkName string) common.ChunkHandle {
+func getChunkHandle(chunkName string) uint64 {
 	h := fnv.New64a()
 	h.Write([]byte(chunkName))
-	return common.ChunkHandle(h.Sum64())
+	return uint64(h.Sum64())
 }
 
 func InitializeMasterServer() {

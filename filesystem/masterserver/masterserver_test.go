@@ -2,6 +2,7 @@ package masterserver
 
 import (
 	"glfs/common"
+	"glfs/protobufs/pb"
 	"testing"
 )
 
@@ -9,15 +10,15 @@ func TestInitialize_ShouldInitializeDataStructures(t *testing.T) {
 	server := MasterServer{}
 	server.Initialize()
 
-	if server.ChunkMetadata == nil {
+	if server.State.ChunkMetadata == nil {
 		t.Fatalf("Initialize: must initialize ChunkMetadata")
 	}
 
-	if server.FileMetadata == nil {
+	if server.State.FileMetadata == nil {
 		t.Fatalf("Initialize: must initialize FileMetadata")
 	}
 
-	if server.ChunkServers == nil {
+	if server.State.ChunkServers == nil {
 		t.Fatalf("Initialize: must initialize ChunkServers")
 	}
 }
@@ -26,7 +27,7 @@ func TestPing_ShouldInsertChunkServerMetadata(t *testing.T) {
 	server := MasterServer{}
 	server.Initialize()
 
-	expectedId, expectedAddress := uint8(8), "chunkServerAddress1"
+	expectedId, expectedAddress := uint32(8), "chunkServerAddress1"
 
 	var reply bool
 	err := server.Ping(&common.PingArgs{
@@ -41,7 +42,7 @@ func TestPing_ShouldInsertChunkServerMetadata(t *testing.T) {
 		t.Fail()
 	}
 
-	val, success := server.ChunkServers[expectedId]
+	val, success := server.State.ChunkServers[expectedId]
 
 	if !success {
 		t.Fail()
@@ -59,7 +60,7 @@ func TestDelete_ShouldChangeHideFile(t *testing.T) {
 	server.Initialize()
 
 	filename := "some_file"
-	server.FileMetadata[filename] = &FileMetadata{
+	server.State.FileMetadata[filename] = &pb.File{
 		FileName: filename,
 	}
 
@@ -71,7 +72,7 @@ func TestDelete_ShouldChangeHideFile(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	if server.FileMetadata[filename].FileName[0] != '.' {
+	if server.State.FileMetadata[filename].FileName[0] != '.' {
 		t.Fail()
 	}
 }
@@ -81,7 +82,7 @@ func TestDelete_ShouldSetDeletionTimeStamp(t *testing.T) {
 	server.Initialize()
 
 	filename := "some_file"
-	server.FileMetadata[filename] = &FileMetadata{}
+	server.State.FileMetadata[filename] = &pb.File{}
 
 	var reply bool
 	err := server.Delete(&common.DeleteFileArgsMaster{
@@ -91,7 +92,7 @@ func TestDelete_ShouldSetDeletionTimeStamp(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	if server.FileMetadata[filename].DeletionTimeStamp == 0 {
+	if server.State.FileMetadata[filename].DeletionTimeStamp == 0 {
 		t.Fail()
 	}
 }

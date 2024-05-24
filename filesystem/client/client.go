@@ -33,12 +33,12 @@ func (t *GLFSClient) Create(filepath string) bool {
 
 	masterArgs := &common.CreateFileArgsMaster{
 		FileName:       fileName,
-		NumberOfChunks: uint8(numberOfChunks),
+		NumberOfChunks: uint32(numberOfChunks),
 	}
 	log.Printf("Calling Master.Create with args %v", *masterArgs)
 
 	var reply common.CreateFileReplyMaster
-	reply.ChunkMap = make(map[uint8]*common.ClientChunkInfo)
+	reply.ChunkMap = make(map[uint32]*common.ClientChunkInfo)
 
 	err = t.masterClient.Call("MasterServer.Create", masterArgs, &reply)
 	if err != nil {

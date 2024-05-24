@@ -9,7 +9,7 @@ func GetMasterServerAddress() string {
 	return MasterServerAddress
 }
 
-func GetChunkServerAddress(id uint8) string {
+func GetChunkServerAddress(id uint32) string {
 	return fmt.Sprintf(ChunkServerAddress, id)
 }
 

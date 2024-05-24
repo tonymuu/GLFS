@@ -12,7 +12,7 @@ import (
 )
 
 type ChunkServer struct {
-	Id      uint8
+	Id      uint32
 	Address string
 }
 
@@ -35,9 +35,9 @@ func (t *ChunkServer) Create(args *common.CreateFileArgsChunk, reply *bool) erro
 }
 
 func (t *ChunkServer) Read(args *common.ReadFileArgsChunk, reply *common.ReadFileReplyChunk) error {
-	log.Printf("Received Chunk.Create call with chunkHandle %v", args.ChunkHandle)
+	log.Printf("Received Chunk.Read call with chunkHandle %v", args.ChunkHandle)
 
-	filePath := common.GetTmpPath("chunk", fmt.Sprint(args.ChunkHandle))
+	filePath := common.GetTmpPath(fmt.Sprintf("chunk/%v", t.Id), fmt.Sprint(args.ChunkHandle))
 	content, err := os.ReadFile(filePath)
 	common.Check(err)
 
@@ -51,7 +51,7 @@ func InitializeChunkServer(idStr *string) {
 	// Init chunk server
 	chunk := new(ChunkServer)
 	id, _ := strconv.Atoi(*idStr)
-	chunk.Id = uint8(id)
+	chunk.Id = uint32(id)
 	chunk.Address = common.GetChunkServerAddress(chunk.Id)
 
 	// Create a directory for holding all chunks with chunkHandle as file names
