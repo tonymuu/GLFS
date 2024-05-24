@@ -21,8 +21,8 @@ func GetTmpPath(subdir string, filename string) string {
 	return fmt.Sprintf("%v/tmp/%v/%v", GetRootDir(), subdir, filename)
 }
 
-func GetLogPath(role string) string {
-	return fmt.Sprintf("%v/%v/log_%v.txt", GetRootDir(), "logs", role)
+func GetLogPath(name string) string {
+	return fmt.Sprintf("%v/%v/log_%v.txt", GetRootDir(), "logs", name)
 }
 
 func Check(e error) {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"glfs/chunkserver"
 	"glfs/client"
 	"glfs/common"
@@ -27,7 +28,8 @@ func main() {
 
 	// set up logging
 	// logDir := fmt.Sprintf("%v/%v/log_%v.txt", common.GetRootDir(), "logs", role)
-	f, err := os.OpenFile(common.GetLogPath(*role), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	name := fmt.Sprintf("%v_%v", *role, *chunkId)
+	f, err := os.OpenFile(common.GetLogPath(name), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}
