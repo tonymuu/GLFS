@@ -79,6 +79,11 @@ func (t *MasterServer) Create(args *common.CreateFileArgsMaster, reply *common.C
 		}
 	}
 
+	if err := t.flushState(); err != nil {
+		log.Fatalf("Failed checkpointing master.")
+		return err
+	}
+
 	log.Printf(`Finished saving file/chunk data at master.
 	FileMetadata: %v
 	ChunkMetadata: %v`,
@@ -103,6 +108,11 @@ func (t *MasterServer) Delete(args *common.DeleteFileArgsMaster, reply *bool) er
 	fileInfo.FileName = fmt.Sprintf(".%v", fileInfo.FileName)
 	// set deletion timestamp
 	fileInfo.DeletionTimeStamp = time.Now().Add(time.Hour * 3 * 24).Unix()
+
+	if err := t.flushState(); err != nil {
+		log.Fatalf("Failed checkpointing master.")
+		return err
+	}
 
 	log.Printf(`Finished marking file for deletion at master.
 	FileMetadata: %v
@@ -168,16 +178,19 @@ func (t *MasterServer) flushState() error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile("", out, 0644); err != nil {
+
+	if err := os.WriteFile(checkpointPath(), out, 0644); err != nil {
 		return err
 	}
+
+	log.Printf("Master state checkpointed.")
 
 	return nil
 }
 
 // Deserialize from protobuf
 func (t *MasterServer) recoverState() error {
-	in, err := os.ReadFile("")
+	in, err := os.ReadFile(checkpointPath())
 	if err != nil {
 		return err
 	}
@@ -186,6 +199,8 @@ func (t *MasterServer) recoverState() error {
 	if err := proto.Unmarshal(in, &t.State); err != nil {
 		return err
 	}
+
+	log.Printf("Master state recovered: %v", t.State)
 
 	return nil
 }
@@ -199,6 +214,10 @@ func getChunkHandle(chunkName string) uint64 {
 	h := fnv.New64a()
 	h.Write([]byte(chunkName))
 	return uint64(h.Sum64())
+}
+
+func checkpointPath() string {
+	return common.GetTmpPath("master", "state.checkpoint")
 }
 
 func InitializeMasterServer() {
