@@ -27,4 +27,5 @@ done
 # sleep to make sure all servers are ready
 sleep 3
 
+# compile proto bufs
 # protoc -I=. --go_out=. ./master_checkpoint.proto
