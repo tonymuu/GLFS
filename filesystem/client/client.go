@@ -61,7 +61,9 @@ func (t *GLFSClient) Create(filepath string) bool {
 			Content:     chunk,
 		}
 
-		t.sendFileToChunkServer(chunkInfo.Location, args)
+		t.sendFileToChunkServer(chunkInfo.PrimaryLocation, args)
+		t.sendFileToChunkServer(chunkInfo.Replica1Location, args)
+		t.sendFileToChunkServer(chunkInfo.Replica2Location, args)
 	}
 	return true
 }
@@ -111,7 +113,7 @@ func (t *GLFSClient) Read(filename string, outputPath string) []byte {
 		args := &common.ReadFileArgsChunk{
 			ChunkHandle: chunkInfo.ChunkHandle,
 		}
-		content := t.readFileFromChunkServer(chunkInfo.Location, args)
+		content := t.readFileFromChunkServer(chunkInfo.PrimaryLocation, args)
 		offset := i * common.ChunkSize
 		file.WriteAt(content, int64(offset))
 	}

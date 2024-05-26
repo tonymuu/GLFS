@@ -60,6 +60,8 @@ type ReadFileReplyChunk struct {
 
 // Objects
 type ClientChunkInfo struct {
-	ChunkHandle uint64
-	Location    string
+	ChunkHandle      uint64
+	PrimaryLocation  string
+	Replica1Location string
+	Replica2Location string
 }

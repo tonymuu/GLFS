@@ -60,22 +60,31 @@ func (t *MasterServer) Create(args *common.CreateFileArgsMaster, reply *common.C
 	}
 
 	for chunkId := range args.NumberOfChunks {
-		// Get chunkServer address
-		chunkServer := t.State.ChunkServers[mapChunkIdToChunkServerIndex(chunkId, chunkServerIds)]
-		chunkLocation := chunkServer.ServerAddress
-
 		// compute chunkHandle
 		chunkName := fmt.Sprintf("%v-%v", args.FileName, chunkId)
 		chunkHandle := getChunkHandle(chunkName)
 
+		// Get chunkServer address
+		primaryServerId, replica1ServerId, replica2ServerId := mapChunkIdToChunkServerIndex(chunkHandle, chunkServerIds)
+		primaryServer, replica1Server, replica2Server :=
+			t.State.ChunkServers[primaryServerId], t.State.ChunkServers[replica1ServerId], t.State.ChunkServers[replica2ServerId]
+		primaryChunkLocation, replica1ChunkLocation, replica2ChunkLocation :=
+			primaryServer.ServerAddress, replica1Server.ServerAddress, replica2Server.ServerAddress
+
 		// Save this information
 		t.State.ChunkMetadata[chunkHandle] = &pb.Chunk{}
-		t.State.ChunkMetadata[chunkHandle].Location = chunkLocation
+		t.State.ChunkMetadata[chunkHandle].PrimaryLocationServerId,
+			t.State.ChunkMetadata[chunkHandle].PrimaryLocationServerId,
+			t.State.ChunkMetadata[chunkHandle].PrimaryLocationServerId =
+			primaryServerId, replica1ServerId, replica2ServerId
+
 		(t.State.FileMetadata[args.FileName].ChunkHandles)[chunkId] = chunkHandle
 
 		reply.ChunkMap[chunkId] = &common.ClientChunkInfo{
-			Location:    chunkLocation,
-			ChunkHandle: chunkHandle,
+			PrimaryLocation:  primaryChunkLocation,
+			Replica1Location: replica1ChunkLocation,
+			Replica2Location: replica2ChunkLocation,
+			ChunkHandle:      chunkHandle,
 		}
 	}
 
@@ -131,11 +140,14 @@ func (t *MasterServer) Read(args *common.ReadFileArgsMaster, reply *common.ReadF
 		return fmt.Errorf("file not found with name %v", args.FileName)
 	}
 
+	// TODO: check for chunkserver health here. If primary is not healthy, fall baack to replicas.
 	reply.Chunks = make([]common.ClientChunkInfo, len(fileInfo.ChunkHandles))
 	for i, chunkHandle := range fileInfo.ChunkHandles {
+		chunkServerId := t.State.ChunkMetadata[chunkHandle].PrimaryLocationServerId
+		chunkServerAddress := t.State.ChunkServers[chunkServerId].ServerAddress
 		reply.Chunks[i] = common.ClientChunkInfo{
-			ChunkHandle: chunkHandle,
-			Location:    t.State.ChunkMetadata[chunkHandle].Location,
+			ChunkHandle:     chunkHandle,
+			PrimaryLocation: chunkServerAddress,
 		}
 	}
 
@@ -205,9 +217,15 @@ func (t *MasterServer) recoverState() error {
 	return nil
 }
 
-func mapChunkIdToChunkServerIndex(chunkId uint32, chunkServerIds []uint32) uint32 {
-	index := chunkId % uint32(len(chunkServerIds))
-	return chunkServerIds[index]
+// For now this method hashes chunkHandle into one of the serverids, and place the replicas on servers right after the primary
+// TODO: We can scan master's chunkServer state and find the three servers with lowest number of replicas.
+// This is okay (close to constant) for small number of chunkservers when n <= 100.
+// TODO: use a priorityqueue (min heap) instead for O(logn) lookups when chunk server number is large.
+func mapChunkIdToChunkServerIndex(chunkHandle uint64, chunkServerIds []uint32) (uint32, uint32, uint32) {
+	mod := uint64(len(chunkServerIds))
+	primaryIndex := chunkHandle % mod
+	replicaIndex1, replicaIndex2 := (primaryIndex+1)%mod, (primaryIndex+2)%mod
+	return chunkServerIds[primaryIndex], chunkServerIds[replicaIndex1], chunkServerIds[replicaIndex2]
 }
 
 func getChunkHandle(chunkName string) uint64 {

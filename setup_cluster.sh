@@ -28,4 +28,4 @@ done
 sleep 3
 
 # compile proto bufs
-# protoc -I=. --go_out=. ./master_checkpoint.proto
+# protoc -I=. --go_out=. ./masterserver.proto

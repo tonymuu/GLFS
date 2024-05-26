@@ -28,5 +28,8 @@ message File {
 }
 
 message Chunk {
-    string Location = 1;
+    uint32 PrimaryLocationServerId = 1;
+    uint32 ReplicaOneLocationServerId = 2;
+    uint32 ReplicaTwoLocationServerId = 3;
+    uint32 ReplicaCount = 4;
 }
