@@ -36,6 +36,11 @@ type CreateFileArgsChunk struct {
 type DeleteFileArgsChunk struct {
 }
 
+type GetPrimaryArgsMaster struct {
+	FileName   string
+	ChunkIndex uint64
+}
+
 // Response types
 
 // Reply from client to master create file call
@@ -52,6 +57,9 @@ type ReadFileReplyMaster struct {
 
 type ReadFileReplyChunk struct {
 	Content []byte
+}
+
+type GetPrimaryReplyMaster struct {
 }
 
 // Objects

@@ -15,8 +15,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var persistedStateFile *os.File
-
 type MasterServer struct {
 	State pb.MasterServer
 }
@@ -156,6 +154,32 @@ func (t *MasterServer) Read(args *common.ReadFileArgsMaster, reply *common.ReadF
 	return nil
 }
 
+// Get primary
+func (t *MasterServer) GetPrimary(args *common.GetPrimaryArgsMaster, reply *common.ClientChunkInfo) error {
+	log.Printf("Received Master.GetPrimary call with args %v", args)
+
+	file := t.State.FileMetadata[args.FileName]
+	chunkHandle := file.ChunkHandles[args.ChunkIndex]
+	chunk := t.State.ChunkMetadata[chunkHandle]
+
+	// Renew lease on primary chunk server if expired or not already granted
+	if chunk.TimeStampLastLeaseGrant < time.Now().Unix()-common.LeaseDuration {
+		log.Printf("Lease overlapped. Old timestamp %v, new timestamp %v", chunk.TimeStampLastLeaseGrant, time.Now().Unix())
+		chunk.TimeStampLastLeaseGrant = time.Now().Unix()
+	}
+
+	reply.ChunkHandle = chunkHandle
+	reply.PrimaryLocation = t.State.ChunkServers[chunk.PrimaryServerId].ServerAddress
+	reply.ReplicaLocations = make([]string, len(chunk.ReplicaServerIds))
+	for i, sid := range chunk.ReplicaServerIds {
+		reply.ReplicaLocations[i] = t.State.ChunkServers[sid].ServerAddress
+	}
+
+	log.Printf("Renewed lease and returning %v", reply)
+
+	return nil
+}
+
 func (t *MasterServer) Initialize() {
 	t.State.ChunkServers = map[uint32]*pb.ChunkServer{}
 	t.State.FileMetadata = map[string]*pb.File{}
@@ -164,9 +188,6 @@ func (t *MasterServer) Initialize() {
 	// On master start, it should check to see if there is any old state.
 	stateDir := common.GetTmpPath("master", "")
 	err := os.MkdirAll(stateDir, os.ModePerm)
-	common.Check(err)
-
-	persistedStateFile, err = os.OpenFile(fmt.Sprintf("%v/state.backup", stateDir), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	common.Check(err)
 
 	t.recoverState()

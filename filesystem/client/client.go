@@ -123,6 +123,25 @@ func (t *GLFSClient) Read(filename string, outputPath string) []byte {
 	return nil
 }
 
+func (t *GLFSClient) Write(filename string, offset uint64, data []byte) {
+	// First get chunkHandles and chunkLocations from master
+	masterArgs := &common.GetPrimaryArgsMaster{
+		FileName:   filename,
+		ChunkIndex: offset / common.ChunkSize,
+	}
+	log.Printf("Calling Master.GetPrimary with args %v", *masterArgs)
+
+	var reply common.GetPrimaryReplyMaster
+
+	err := t.masterClient.Call("MasterServer.GetPrimary", masterArgs, &reply)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Got reply from master for GetPrimary: %v", reply)
+
+}
+
 func (t *GLFSClient) sendFileToChunkServer(location string, args *common.CreateFileArgsChunk) {
 	// connect to master server using tcp
 	chunkClient, err := rpc.DialHTTP("tcp", location)

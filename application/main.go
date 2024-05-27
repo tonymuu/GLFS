@@ -37,13 +37,15 @@ func main() {
 		command = strings.Trim(command, "\n")
 
 		switch command {
-		case "create":
+		case "c":
 			client.Create(inputPath)
-		case "delete":
+		case "d":
 			client.Delete("test_0.dat")
-		case "read":
+		case "r":
 			client.Read("test_0.dat", outputPath)
 			checkSum(inputPath, outputPath)
+		case "w":
+			client.Write("test_0.dat", 0, []byte{})
 		case "q":
 			os.Exit(0)
 
