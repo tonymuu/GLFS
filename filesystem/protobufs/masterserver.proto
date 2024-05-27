@@ -30,4 +30,6 @@ message File {
 message Chunk {
     uint32 PrimaryServerId = 1;
     repeated uint32 ReplicaServerIds = 2;
+    uint64 TimeStampLastLeaseGrant = 3;
+    uint64 Version = 4;
 }

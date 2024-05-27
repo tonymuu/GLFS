@@ -11,9 +11,16 @@ import (
 	"strconv"
 )
 
+// TODO: persist ChunkServer state
 type ChunkServer struct {
 	Id      uint32
 	Address string
+	Chunks  map[uint64]*Chunk
+}
+
+type Chunk struct {
+	ChunkHandle uint64
+	Version     uint64
 }
 
 func (t *ChunkServer) Ping(args *common.PingArgs, reply *bool) error {
@@ -27,6 +34,11 @@ func (t *ChunkServer) Create(args *common.CreateFileArgsChunk, reply *bool) erro
 	filePath := common.GetTmpPath(fmt.Sprintf("chunk/%v", t.Id), fmt.Sprint(args.ChunkHandle))
 	err := os.WriteFile(filePath, args.Content, 0644)
 	common.Check(err)
+
+	t.Chunks[args.ChunkHandle] = &Chunk{
+		ChunkHandle: args.ChunkHandle,
+		Version:     0,
+	}
 
 	log.Printf("Successfully saved local %v", filePath)
 
@@ -53,6 +65,7 @@ func InitializeChunkServer(idStr *string) {
 	id, _ := strconv.Atoi(*idStr)
 	chunk.Id = uint32(id)
 	chunk.Address = common.GetChunkServerAddress(chunk.Id)
+	chunk.Chunks = map[uint64]*Chunk{}
 
 	// Create a directory for holding all chunks with chunkHandle as file names
 	dirPath := common.GetTmpPath(fmt.Sprintf("chunk/%v", chunk.Id), "")
