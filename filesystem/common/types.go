@@ -36,10 +36,6 @@ type CreateFileArgsChunk struct {
 type DeleteFileArgsChunk struct {
 }
 
-// Arguments for client to master read file call
-type ReadFileArgs struct {
-}
-
 // Response types
 
 // Reply from client to master create file call
@@ -62,6 +58,5 @@ type ReadFileReplyChunk struct {
 type ClientChunkInfo struct {
 	ChunkHandle      uint64
 	PrimaryLocation  string
-	Replica1Location string
-	Replica2Location string
+	ReplicaLocations []string
 }

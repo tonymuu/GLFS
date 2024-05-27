@@ -62,8 +62,10 @@ func (t *GLFSClient) Create(filepath string) bool {
 		}
 
 		t.sendFileToChunkServer(chunkInfo.PrimaryLocation, args)
-		t.sendFileToChunkServer(chunkInfo.Replica1Location, args)
-		t.sendFileToChunkServer(chunkInfo.Replica2Location, args)
+
+		for _, replicaLocation := range chunkInfo.ReplicaLocations {
+			t.sendFileToChunkServer(replicaLocation, args)
+		}
 	}
 	return true
 }
