@@ -63,7 +63,7 @@ func (t *MasterServer) Create(args *common.CreateFileArgsMaster, reply *common.C
 		chunkHandle := getChunkHandle(chunkName)
 
 		// Get chunkServer address
-		primaryServerId, replicaServerIds := mapChunkIdToChunkServerIndex(chunkHandle, common.ReplicationGoal, chunkServerIds)
+		primaryServerId, replicaServerIds := mapChunkIdToChunkServerIndex(chunkHandle, chunkServerIds)
 		primaryServer := t.State.ChunkServers[primaryServerId]
 
 		// Save this information
@@ -242,13 +242,14 @@ func (t *MasterServer) recoverState() error {
 // TODO: We can scan master's chunkServer state and find the three servers with lowest number of replicas.
 // This is okay (close to constant) for small number of chunkservers when n <= 100.
 // TODO: use a priorityqueue (min heap) instead for O(logn) lookups when chunk server number is large.
-func mapChunkIdToChunkServerIndex(chunkHandle uint64, replicationGoal uint32, chunkServerIds []uint32) (uint32, []uint32) {
+func mapChunkIdToChunkServerIndex(chunkHandle uint64, chunkServerIds []uint32) (uint32, []uint32) {
 	mod := uint64(len(chunkServerIds))
-	primaryServerId := chunkServerIds[chunkHandle%mod]
-	replicaServerIds := make([]uint32, replicationGoal)
-	for i := uint32(0); i < replicationGoal; i++ {
+	replicaServerIds := make([]uint32, common.ReplicationGoal)
+	for i := uint32(0); i < common.ReplicationGoal; i++ {
 		replicaServerIds[i] = uint32(chunkServerIds[(chunkHandle+uint64(i))%mod])
 	}
+	// Primary default to first server in replica servers
+	primaryServerId := replicaServerIds[0]
 	return primaryServerId, replicaServerIds
 }
 

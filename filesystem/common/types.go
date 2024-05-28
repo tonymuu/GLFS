@@ -41,6 +41,18 @@ type GetPrimaryArgsMaster struct {
 	ChunkIndex uint64
 }
 
+type WriteArgsChunk struct {
+	ChunkHandle uint64
+	Offset      uint64
+	Data        []byte
+}
+
+type CommitWriteArgsChunk struct {
+	IsPrimary bool
+	UpdateId  uint64            // only used when IsPrimary: primary's UpdateId
+	Replicas  map[string]uint64 // map from updateId to address
+}
+
 // Response types
 
 // Reply from client to master create file call
@@ -59,7 +71,8 @@ type ReadFileReplyChunk struct {
 	Content []byte
 }
 
-type GetPrimaryReplyMaster struct {
+type WriteReplyChunk struct {
+	UpdateId uint64
 }
 
 // Objects

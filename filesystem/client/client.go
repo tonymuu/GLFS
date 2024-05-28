@@ -131,15 +131,86 @@ func (t *GLFSClient) Write(filename string, offset uint64, data []byte) {
 	}
 	log.Printf("Calling Master.GetPrimary with args %v", *masterArgs)
 
-	var reply common.GetPrimaryReplyMaster
+	var reply common.ClientChunkInfo
 
 	err := t.masterClient.Call("MasterServer.GetPrimary", masterArgs, &reply)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	primaryAddress := reply.PrimaryLocation
+
 	log.Printf("Got reply from master for GetPrimary: %v", reply)
 
+	// push update to all chunkservers
+	replicas := make(map[string]uint64, len(reply.ReplicaLocations))
+	var primaryUpdateId uint64
+	for _, addr := range reply.ReplicaLocations {
+		args := &common.WriteArgsChunk{
+			ChunkHandle: reply.ChunkHandle,
+			Offset:      offset,
+			Data:        data,
+		}
+		// skip adding master to replicas
+		if addr != primaryAddress {
+			replicas[addr] = t.sendUpdateToChunkServer(addr, args)
+		} else {
+			primaryUpdateId = t.sendUpdateToChunkServer(addr, args)
+		}
+	}
+
+	// send commitWrite message to primary chunk server only
+	args := &common.CommitWriteArgsChunk{
+		IsPrimary: true,
+		UpdateId:  primaryUpdateId,
+		Replicas:  replicas,
+	}
+	commitReply := t.commitWriteAtPrimary(primaryAddress, args)
+	log.Printf("Got commitReply from primary", commitReply)
+}
+
+// Returns updateId used to identify this update the chunkServer
+func (t *GLFSClient) sendUpdateToChunkServer(location string, args *common.WriteArgsChunk) uint64 {
+	// connect to master server using tcp
+	chunkClient, err := rpc.DialHTTP("tcp", location)
+	if err != nil {
+		log.Fatal("Connecting to chunk client failed: ", err)
+	}
+
+	// This is the changeId used to reference this change at chunkserver
+	// later in commitWrite call, this will be used to apply this update.
+	reply := &common.WriteReplyChunk{}
+
+	log.Printf("Writing chunk chunkServer at %v with args %v", location, args)
+	err = chunkClient.Call("ChunkServer.Write", args, &reply)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Received WriteReplyChunk from chunkServer at %v and reply %v", location, reply)
+
+	return reply.UpdateId
+}
+
+// Returns updateId used to identify this update the chunkServer
+func (t *GLFSClient) commitWriteAtPrimary(primaryAddr string, args *common.CommitWriteArgsChunk) bool {
+	// connect to master server using tcp
+	chunkClient, err := rpc.DialHTTP("tcp", primaryAddr)
+	if err != nil {
+		log.Fatal("Connecting to chunk client failed: ", err)
+	}
+
+	// This is the changeId used to reference this change at chunkserver
+	// later in commitWrite call, this will be used to apply this update.
+	var reply bool
+
+	log.Printf("CommitWrite at %v with args %v", primaryAddr, args)
+	err = chunkClient.Call("ChunkServer.CommitWrite", args, &reply)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Received CommitWrite from primary chunkServer at %v and reply %v", primaryAddr, reply)
+
+	return reply
 }
 
 func (t *GLFSClient) sendFileToChunkServer(location string, args *common.CreateFileArgsChunk) {
@@ -187,8 +258,4 @@ func (t *GLFSClient) Initialize() {
 	}
 	// persist the connection
 	t.masterClient = masterClient
-}
-
-func InitializeClient() {
-	// test code for now
 }

@@ -17,7 +17,15 @@ func main() {
 	chunkId := flag.String("id", "", "ChunkServerId")
 	flag.Parse()
 
+	// For debugging master
 	// *role = "master"
+
+	// For debugging chunk server id 2
+	// *role = "chunk"
+	// *chunkId = "2"
+
+	// for debugging client
+	// *role = "client"
 
 	if len(*role) == 0 {
 		log.Fatal("A role must be specified.")
@@ -46,7 +54,9 @@ func main() {
 	case "chunk":
 		chunkserver.InitializeChunkServer(chunkId)
 	case "client":
-		client.InitializeClient()
+		client := client.GLFSClient{}
+		client.Initialize()
+		client.Write("test_0.dat", 0, []byte{})
 	default:
 		log.Fatal("role Can only be master, chunk, or client")
 	}
