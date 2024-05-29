@@ -114,7 +114,7 @@ func (t *MasterServer) Delete(args *common.DeleteFileArgsMaster, reply *bool) er
 	// make the file hidden by adding a period before its name
 	fileInfo.FileName = fmt.Sprintf(".%v", fileInfo.FileName)
 	// set deletion timestamp
-	fileInfo.DeletionTimeStamp = time.Now().Add(time.Hour * 3 * 24).Unix()
+	fileInfo.DeletionTimeStamp = time.Now().Unix()
 
 	if err := t.flushState(); err != nil {
 		log.Fatalf("Failed checkpointing master.")
@@ -266,6 +266,24 @@ func checkpointPath() string {
 func InitializeMasterServer() {
 	server := new(MasterServer)
 	server.Initialize()
+
+	// set up background job for cleaning up deleted files
+	garbageCollectionWorkerControl := make(chan int)
+	garbageCollectionWorker := &Worker{
+		Interval:        60 * time.Second,
+		ShutdownChannel: garbageCollectionWorkerControl,
+		Action:          server.CleanupDeletedFiles,
+	}
+	go garbageCollectionWorker.Run(server)
+
+	// set up background jobs for detecting failed chunkservers
+	chunkServerFailureWorkerControl := make(chan int)
+	chunkServerFailureWorker := &Worker{
+		Interval:        5 * time.Second,
+		ShutdownChannel: chunkServerFailureWorkerControl,
+		Action:          server.CleanupFailedChunkServers,
+	}
+	go chunkServerFailureWorker.Run(server)
 
 	// Start listening all incoming traffic with port
 	rpc.Register(server)

@@ -41,7 +41,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}
-	defer f.Close()
 
 	log.SetOutput(f)
 
@@ -60,4 +59,6 @@ func main() {
 	default:
 		log.Fatal("role Can only be master, chunk, or client")
 	}
+
+	defer f.Close()
 }

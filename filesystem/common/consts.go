@@ -12,3 +12,6 @@ const ReplicationGoal = 3
 
 // in seconds
 const LeaseDuration int64 = 30
+
+// For testing convenience, set it to 5 seconds. Canonically this is 3 days in the GFS paper.
+const FileRetentionPeriod = 5

@@ -34,6 +34,7 @@ type CreateFileArgsChunk struct {
 }
 
 type DeleteFileArgsChunk struct {
+	ChunkHandle uint64
 }
 
 type GetPrimaryArgsMaster struct {

@@ -56,6 +56,20 @@ func (t *ChunkServer) Create(args *common.CreateFileArgsChunk, reply *bool) erro
 	return nil
 }
 
+func (t *ChunkServer) Delete(args *common.DeleteFileArgsChunk, reply *bool) error {
+	log.Printf("Received Chunk.Delete call with chunkHandle %v", args.ChunkHandle)
+	filePath := t.getChunkFilePath(args.ChunkHandle)
+	err := os.Remove(filePath)
+	common.Check(err)
+
+	delete(t.Chunks, args.ChunkHandle)
+
+	log.Printf("Successfully deleted local %v", filePath)
+
+	*reply = true
+	return nil
+}
+
 func (t *ChunkServer) Read(args *common.ReadFileArgsChunk, reply *common.ReadFileReplyChunk) error {
 	log.Printf("Received Chunk.Read call with chunkHandle %v", args.ChunkHandle)
 
