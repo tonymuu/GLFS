@@ -10,18 +10,25 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
 	"google.golang.org/protobuf/proto"
 )
 
 type MasterServer struct {
-	State pb.MasterServer
+	State            pb.MasterServer
+	chunkServerMutex sync.RWMutex
+	chunkMutex       sync.RWMutex
+	fileMutex        sync.RWMutex
 }
 
 func (t *MasterServer) Ping(args *common.PingArgs, reply *bool) error {
 	log.Printf("Master.Ping called with args %v", args)
 
+	t.chunkServerMutex.Lock()
+	defer t.chunkServerMutex.Unlock()
 	t.State.ChunkServers[args.Id] = &pb.ChunkServer{
 		ServerId:          args.Id,
 		ServerAddress:     args.Address,
@@ -45,6 +52,9 @@ func (t *MasterServer) Create(args *common.CreateFileArgsMaster, reply *common.C
 	reply.ChunkMap = map[uint32]*common.ClientChunkInfo{}
 
 	chunkHandles := make([]uint64, args.NumberOfChunks)
+
+	t.fileMutex.Lock()
+	defer t.fileMutex.Unlock()
 	t.State.FileMetadata[args.FileName] = &pb.File{
 		FileName:     args.FileName,
 		ChunkHandles: chunkHandles,
@@ -56,6 +66,9 @@ func (t *MasterServer) Create(args *common.CreateFileArgsMaster, reply *common.C
 		chunkServerIds[i] = chunkServerId
 		i++
 	}
+
+	t.chunkMutex.Lock()
+	defer t.chunkMutex.Unlock()
 
 	for chunkId := range args.NumberOfChunks {
 		// compute chunkHandle
@@ -86,10 +99,7 @@ func (t *MasterServer) Create(args *common.CreateFileArgsMaster, reply *common.C
 		}
 	}
 
-	if err := t.flushState(); err != nil {
-		log.Fatalf("Failed checkpointing master.")
-		return err
-	}
+	t.flushState()
 
 	log.Printf(`Finished saving file/chunk data at master.
 	FileMetadata: %v
@@ -104,11 +114,12 @@ func (t *MasterServer) Create(args *common.CreateFileArgsMaster, reply *common.C
 // The deletion of the physical copies will be handled by the garbage collection thread and chunkservers.
 func (t *MasterServer) Delete(args *common.DeleteFileArgsMaster, reply *bool) error {
 	log.Printf("Received Master.Delete call with args %v", args)
-	fileInfo, found := t.State.FileMetadata[args.FileName]
 
+	// t.fileMutex.Lock()
+	// defer t.fileMutex.Unlock()
+	fileInfo, found := t.isFileFound(args.FileName)
 	if !found {
-		*reply = false
-		return fmt.Errorf("file not found with name %v", args.FileName)
+		return fmt.Errorf("file not found %v", args.FileName)
 	}
 
 	// make the file hidden by adding a period before its name
@@ -116,10 +127,7 @@ func (t *MasterServer) Delete(args *common.DeleteFileArgsMaster, reply *bool) er
 	// set deletion timestamp
 	fileInfo.DeletionTimeStamp = time.Now().Unix()
 
-	if err := t.flushState(); err != nil {
-		log.Fatalf("Failed checkpointing master.")
-		return err
-	}
+	// t.flushState()
 
 	log.Printf(`Finished marking file for deletion at master.
 	FileMetadata: %v
@@ -131,11 +139,14 @@ func (t *MasterServer) Delete(args *common.DeleteFileArgsMaster, reply *bool) er
 }
 
 func (t *MasterServer) Read(args *common.ReadFileArgsMaster, reply *common.ReadFileReplyMaster) error {
-	log.Printf("Received Master.Delete call with args %v", args)
-	fileInfo, found := t.State.FileMetadata[args.FileName]
+	log.Printf("Received Master.Read call with args %v", args)
 
+	t.fileMutex.RLock()
+	defer t.fileMutex.RUnlock()
+
+	fileInfo, found := t.isFileFound(args.FileName)
 	if !found {
-		return fmt.Errorf("file not found with name %v", args.FileName)
+		return fmt.Errorf("file not found %v", args.FileName)
 	}
 
 	// TODO: check for chunkserver health here. If primary is not healthy, fall baack to replicas.
@@ -158,7 +169,14 @@ func (t *MasterServer) Read(args *common.ReadFileArgsMaster, reply *common.ReadF
 func (t *MasterServer) GetPrimary(args *common.GetPrimaryArgsMaster, reply *common.ClientChunkInfo) error {
 	log.Printf("Received Master.GetPrimary call with args %v", args)
 
-	file := t.State.FileMetadata[args.FileName]
+	t.fileMutex.RLock()
+	defer t.fileMutex.RUnlock()
+
+	file, found := t.isFileFound(args.FileName)
+	if !found {
+		return fmt.Errorf("file not found %v", args.FileName)
+	}
+
 	chunkHandle := file.ChunkHandles[args.ChunkIndex]
 	chunk := t.State.ChunkMetadata[chunkHandle]
 
@@ -184,13 +202,6 @@ func (t *MasterServer) Initialize() {
 	t.State.ChunkServers = map[uint32]*pb.ChunkServer{}
 	t.State.FileMetadata = map[string]*pb.File{}
 	t.State.ChunkMetadata = map[uint64]*pb.Chunk{}
-
-	// On master start, it should check to see if there is any old state.
-	stateDir := common.GetTmpPath("master", "")
-	err := os.MkdirAll(stateDir, os.ModePerm)
-	common.Check(err)
-
-	t.recoverState()
 }
 
 func (t *MasterServer) removeExpiredChunkServers() {
@@ -206,19 +217,17 @@ func (t *MasterServer) removeExpiredChunkServers() {
 }
 
 // Serialize to protobuf
-func (t *MasterServer) flushState() error {
+func (t *MasterServer) flushState() {
 	out, err := proto.Marshal(&t.State)
 	if err != nil {
-		return err
+		log.Fatal("Failed checkpointing master.", err)
 	}
 
 	if err := os.WriteFile(checkpointPath(), out, 0644); err != nil {
-		return err
+		log.Fatal("Failed checkpointing master.", err)
 	}
 
 	log.Printf("Master state checkpointed.")
-
-	return nil
 }
 
 // Deserialize from protobuf
@@ -236,6 +245,21 @@ func (t *MasterServer) recoverState() error {
 	log.Printf("Master state recovered: %v", t.State)
 
 	return nil
+}
+
+func (t *MasterServer) isFileFound(fileName string) (*pb.File, bool) {
+	fileInfo, found := t.State.FileMetadata[fileName]
+	if !found {
+		return nil, false
+	}
+	if t.isFileMarkedForDeletion(fileInfo.FileName) {
+		return nil, false
+	}
+	return fileInfo, true
+}
+
+func (t *MasterServer) isFileMarkedForDeletion(fileName string) bool {
+	return strings.HasPrefix(fileName, ".")
 }
 
 // For now this method hashes chunkHandle into one of the serverids, and place the replicas on servers right after the primary
@@ -266,6 +290,13 @@ func checkpointPath() string {
 func InitializeMasterServer() {
 	server := new(MasterServer)
 	server.Initialize()
+
+	// On master start, it should check to see if there is any old state.
+	stateDir := common.GetTmpPath("master", "")
+	err := os.MkdirAll(stateDir, os.ModePerm)
+	common.Check(err)
+
+	server.recoverState()
 
 	// set up background job for cleaning up deleted files
 	garbageCollectionWorkerControl := make(chan int)

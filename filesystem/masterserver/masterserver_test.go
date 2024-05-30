@@ -3,6 +3,7 @@ package masterserver
 import (
 	"glfs/common"
 	"glfs/protobufs/pb"
+	"sync"
 	"testing"
 )
 
@@ -107,6 +108,42 @@ func TestDelete_ShouldReturnErrorWhenFileNotFound(t *testing.T) {
 	}, &reply)
 
 	if err == nil || reply {
+		t.Fail()
+	}
+}
+
+func TestDelete_ShouldHandleConcurrentDelete(t *testing.T) {
+	server := MasterServer{}
+	server.Initialize()
+
+	filename := "some_file"
+	server.State.FileMetadata[filename] = &pb.File{
+		FileName: "some_file.dat",
+	}
+
+	replies := make([]bool, 100)
+	var wg sync.WaitGroup
+
+	for i := range replies {
+		wg.Add(1)
+		go func(rep *bool) {
+			server.Delete(&common.DeleteFileArgsMaster{
+				FileName: "some_file",
+			}, rep)
+			defer wg.Done()
+		}(&replies[i])
+	}
+
+	wg.Wait()
+
+	trueReplyCount := 0
+	for _, r := range replies {
+		if r {
+			trueReplyCount++
+		}
+	}
+
+	if trueReplyCount != 1 {
 		t.Fail()
 	}
 }
