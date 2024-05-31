@@ -37,9 +37,6 @@ func (t *MasterServer) Ping(args *common.PingArgs, reply *bool) error {
 
 	log.Printf("Updated ChunkServers info. New state: %v", t.State.ChunkServers)
 
-	// Expired chunk servers are presumed dead, so we remove them.
-	t.removeExpiredChunkServers()
-
 	*reply = true
 	return nil
 }
@@ -204,18 +201,6 @@ func (t *MasterServer) Initialize() {
 	t.State.ChunkMetadata = map[uint64]*pb.Chunk{}
 }
 
-func (t *MasterServer) removeExpiredChunkServers() {
-	expiration := time.Now().Unix() - common.ChunkServerExpirationTimeSeconds
-	// scan and remove expired chunkServers
-	for key, val := range t.State.ChunkServers {
-		// remove expired chunkServers
-		if val.TimeStampLastPing < expiration {
-			log.Printf("ChunkServer ID %v has expired with LastPingTS %v, currentTS %v", key, val.TimeStampLastPing, expiration)
-			delete(t.State.ChunkServers, key)
-		}
-	}
-}
-
 // Serialize to protobuf
 func (t *MasterServer) flushState() {
 	out, err := proto.Marshal(&t.State)
@@ -242,7 +227,7 @@ func (t *MasterServer) recoverState() error {
 		return err
 	}
 
-	log.Printf("Master state recovered: %v", t.State)
+	log.Printf("Master state recovered: %v", t.State.String())
 
 	return nil
 }
