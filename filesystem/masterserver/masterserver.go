@@ -196,9 +196,15 @@ func (t *MasterServer) GetPrimary(args *common.GetPrimaryArgsMaster, reply *comm
 }
 
 func (t *MasterServer) Initialize() {
-	t.State.ChunkServers = map[uint32]*pb.ChunkServer{}
-	t.State.FileMetadata = map[string]*pb.File{}
-	t.State.ChunkMetadata = map[uint64]*pb.Chunk{}
+	if t.State.ChunkServers == nil {
+		t.State.ChunkServers = map[uint32]*pb.ChunkServer{}
+	}
+	if t.State.FileMetadata == nil {
+		t.State.FileMetadata = map[string]*pb.File{}
+	}
+	if t.State.ChunkMetadata == nil {
+		t.State.ChunkMetadata = map[uint64]*pb.Chunk{}
+	}
 }
 
 // Serialize to protobuf

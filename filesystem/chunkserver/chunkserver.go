@@ -127,10 +127,12 @@ func InitializeChunkServer(idStr *string) {
 	err := os.MkdirAll(dirPath, os.ModePerm)
 	common.Check(err)
 
+	chunk.PingMaster()
+
 	// set up background job for pinging master
 	pingMasterWorkerControl := make(chan int)
 	pingMasterWorker := &common.Worker{
-		Interval:        60 * time.Second,
+		Interval:        5 * time.Second,
 		ShutdownChannel: pingMasterWorkerControl,
 		Action:          chunk.PingMaster,
 	}
