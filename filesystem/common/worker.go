@@ -1,4 +1,4 @@
-package masterserver
+package common
 
 import (
 	"log"
@@ -12,7 +12,7 @@ type Worker struct {
 	Action          func()
 }
 
-func (t *Worker) Run(master *MasterServer) {
+func (t *Worker) Run() {
 	log.Print("Garbage colleciton worker started running")
 
 	t.Stopped = false

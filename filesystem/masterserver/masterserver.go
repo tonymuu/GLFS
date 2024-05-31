@@ -300,21 +300,21 @@ func InitializeMasterServer() {
 
 	// set up background job for cleaning up deleted files
 	garbageCollectionWorkerControl := make(chan int)
-	garbageCollectionWorker := &Worker{
+	garbageCollectionWorker := &common.Worker{
 		Interval:        60 * time.Second,
 		ShutdownChannel: garbageCollectionWorkerControl,
 		Action:          server.CleanupDeletedFiles,
 	}
-	go garbageCollectionWorker.Run(server)
+	go garbageCollectionWorker.Run()
 
 	// set up background jobs for detecting failed chunkservers
 	chunkServerFailureWorkerControl := make(chan int)
-	chunkServerFailureWorker := &Worker{
+	chunkServerFailureWorker := &common.Worker{
 		Interval:        5 * time.Second,
 		ShutdownChannel: chunkServerFailureWorkerControl,
 		Action:          server.CleanupFailedChunkServers,
 	}
-	go chunkServerFailureWorker.Run(server)
+	go chunkServerFailureWorker.Run()
 
 	// Start listening all incoming traffic with port
 	rpc.Register(server)
