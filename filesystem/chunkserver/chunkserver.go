@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"sync/atomic"
+	"time"
 )
 
 // TODO: persist ChunkServer state
@@ -126,21 +127,14 @@ func InitializeChunkServer(idStr *string) {
 	err := os.MkdirAll(dirPath, os.ModePerm)
 	common.Check(err)
 
-	// ping master and join cluster
-	masterClient, err := rpc.DialHTTP("tcp", common.GetMasterServerAddress())
-	if err != nil {
-		log.Fatal("dialing:", err)
+	// set up background job for pinging master
+	pingMasterWorkerControl := make(chan int)
+	pingMasterWorker := &common.Worker{
+		Interval:        60 * time.Second,
+		ShutdownChannel: pingMasterWorkerControl,
+		Action:          chunk.PingMaster,
 	}
-	// Synchronous call
-	args := &common.PingArgs{
-		Id:      chunk.Id,
-		Address: chunk.Address,
-	}
-	var reply bool
-	err = masterClient.Call("MasterServer.Ping", args, &reply)
-	if err != nil {
-		log.Fatal(err)
-	}
+	go pingMasterWorker.Run()
 
 	// start serving
 	rpc.Register(chunk)
