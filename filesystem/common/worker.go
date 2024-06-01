@@ -13,7 +13,7 @@ type Worker struct {
 }
 
 func (t *Worker) Run() {
-	log.Print("Garbage colleciton worker started running")
+	log.Print("Worker started running")
 
 	t.Stopped = false
 
