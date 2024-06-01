@@ -36,7 +36,7 @@ func (t *MasterServer) deleteChunks(file *pb.File) {
 	for _, chunkHandle := range file.ChunkHandles {
 		log.Printf("Deleting chunk handle %v", chunkHandle)
 		chunk := t.State.ChunkMetadata[chunkHandle]
-		t.deleteChunk(chunkHandle, chunk)
+		go t.deleteChunk(chunkHandle, chunk)
 	}
 }
 

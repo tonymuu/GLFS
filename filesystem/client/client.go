@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/rpc"
 	"os"
+	"sync"
 )
 
 // Client will live along with application, serving as a library
@@ -61,11 +62,14 @@ func (t *GLFSClient) Create(filepath string) bool {
 			Content:     chunk,
 		}
 
-		t.sendFileToChunkServer(chunkInfo.PrimaryLocation, args)
-
+		var wg sync.WaitGroup
+		go t.sendFileToChunkServer(chunkInfo.PrimaryLocation, args, &wg)
 		for _, replicaLocation := range chunkInfo.ReplicaLocations {
-			t.sendFileToChunkServer(replicaLocation, args)
+			wg.Add(1)
+			go t.sendFileToChunkServer(replicaLocation, args, &wg)
 		}
+
+		wg.Wait()
 	}
 	return true
 }
@@ -111,14 +115,22 @@ func (t *GLFSClient) Read(filename string, outputPath string) []byte {
 	defer file.Close()
 
 	// Then for each chunk handle/location, get chunk bytes from chunkServers
+	var wg sync.WaitGroup
 	for i, chunkInfo := range reply.Chunks {
 		args := &common.ReadFileArgsChunk{
 			ChunkHandle: chunkInfo.ChunkHandle,
 		}
-		content := t.readFileFromChunkServer(chunkInfo.PrimaryLocation, args)
+		content := make([]byte, common.ChunkSize)
+		wg.Add(2)
+		go t.readFileFromChunkServer(chunkInfo.PrimaryLocation, args, &content, &wg)
 		offset := i * common.ChunkSize
-		file.WriteAt(content, int64(offset))
+		go func() {
+			file.WriteAt(content, int64(offset))
+			wg.Done()
+		}()
 	}
+
+	wg.Wait()
 
 	return nil
 }
@@ -213,7 +225,7 @@ func (t *GLFSClient) commitWriteAtPrimary(primaryAddr string, args *common.Commi
 	return reply
 }
 
-func (t *GLFSClient) sendFileToChunkServer(location string, args *common.CreateFileArgsChunk) {
+func (t *GLFSClient) sendFileToChunkServer(location string, args *common.CreateFileArgsChunk, wg *sync.WaitGroup) {
 	// connect to master server using tcp
 	chunkClient, err := rpc.DialHTTP("tcp", location)
 	if err != nil {
@@ -228,9 +240,11 @@ func (t *GLFSClient) sendFileToChunkServer(location string, args *common.CreateF
 		log.Fatal(err)
 	}
 	log.Printf("Received FileUploadReply from chunkServer at %v and reply %v", location, reply)
+
+	wg.Done()
 }
 
-func (t *GLFSClient) readFileFromChunkServer(location string, args *common.ReadFileArgsChunk) []byte {
+func (t *GLFSClient) readFileFromChunkServer(location string, args *common.ReadFileArgsChunk, content *[]byte, wg *sync.WaitGroup) {
 	// connect to master server using tcp
 	chunkClient, err := rpc.DialHTTP("tcp", location)
 	if err != nil {
@@ -244,9 +258,11 @@ func (t *GLFSClient) readFileFromChunkServer(location string, args *common.ReadF
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Received FileDownloadReply from chunkServer at %v and content length", location, len(reply.Content))
+	log.Printf("Received FileDownloadReply from chunkServer at %v and content length %v", location, len(reply.Content))
 
-	return reply.Content
+	*content = reply.Content
+
+	wg.Done()
 }
 
 // Initialize client with default configs

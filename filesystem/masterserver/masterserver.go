@@ -301,7 +301,7 @@ func InitializeMasterServer() {
 	// set up background jobs for detecting failed chunkservers
 	chunkServerFailureWorkerControl := make(chan int)
 	chunkServerFailureWorker := &common.Worker{
-		Interval:        5 * time.Second,
+		Interval:        10 * time.Second,
 		ShutdownChannel: chunkServerFailureWorkerControl,
 		Action:          server.CleanupFailedChunkServers,
 	}
