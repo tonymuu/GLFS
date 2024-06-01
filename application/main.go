@@ -4,25 +4,55 @@ import (
 	"bufio"
 	"crypto/md5"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"glfs/client"
 	"glfs/common"
 	"io"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
 // There must be a running GFS cluster
 func main() {
-	// mode := flag.String("-m", "i", "running mode, i for interactive.")
-	// flag.Parse()
+	mode := flag.String("mode", "", "running mode, i for interactive.")
+	scenario := flag.String("scenario", "", "Which evaluation scenarios to run")
+	clientCount := flag.String("clientcount", "", "Which evaluation scenarios to run")
 
-	// // only support interactive for now
-	// if *mode != "i" {
-	// 	os.Exit(1)
-	// }
+	flag.Parse()
 
+	// we can run the app in interactive mode with a single client for debugging
+	if *mode == "i" {
+		runInteractiveApp()
+		return
+	}
+
+	// we can also run the app with predefined scenarios for perf evaluations.
+	if *mode == "e" {
+		runEvaluations(*scenario, *clientCount)
+		return
+	}
+}
+
+func runEvaluations(scenario string, clientCount string) {
+	f, err := os.OpenFile(fmt.Sprintf("%v/eval/%v", common.GetRootDir(), scenario), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	defer f.Close()
+
+	log.SetOutput(f)
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
+	count, _ := strconv.Atoi(clientCount)
+	if scenario == "readonly" {
+		ReadOnly(count)
+	}
+}
+
+func runInteractiveApp() {
 	client := client.GLFSClient{}
 	client.Initialize()
 
@@ -53,7 +83,6 @@ func main() {
 			log.Printf("Testcase not supported, please check spelling!")
 		}
 	}
-
 }
 
 func checkSum(filePath1 string, filePath2 string) bool {

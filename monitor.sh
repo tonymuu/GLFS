@@ -1,3 +1,4 @@
+#!/bin/bash
 while true; do
     # find glfs master server acount
     n=$(ps aux | grep "[g]lfs -role master"| wc -l)
