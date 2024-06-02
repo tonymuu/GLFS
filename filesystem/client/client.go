@@ -3,7 +3,6 @@ package client
 import (
 	"glfs/common"
 	"log"
-	"net/rpc"
 	"os"
 	"sync"
 )
@@ -11,13 +10,13 @@ import (
 // Client will live along with application, serving as a library
 // No need for RPC calls.
 type GLFSClient struct {
-	masterClient *rpc.Client
+	masterAddress string
 }
 
 // This method will be exported and called directly by application.
 func (t *GLFSClient) Create(filepath string) bool {
 	// handle error cases
-	if t.masterClient == nil {
+	if len(t.masterAddress) == 0 {
 		log.Fatal("Connection to master server not initialized, please call Initialize() or manually create connection to master.")
 	}
 
@@ -41,7 +40,7 @@ func (t *GLFSClient) Create(filepath string) bool {
 	var reply common.CreateFileReplyMaster
 	reply.ChunkMap = make(map[uint32]*common.ClientChunkInfo)
 
-	err = t.masterClient.Call("MasterServer.Create", masterArgs, &reply)
+	err = common.DialAndCall("MasterServer.Create", t.masterAddress, masterArgs, &reply)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -83,7 +82,7 @@ func (t *GLFSClient) Delete(filename string) bool {
 
 	var reply bool
 
-	err := t.masterClient.Call("MasterServer.Delete", masterArgs, &reply)
+	err := common.DialAndCall("MasterServer.Delete", t.masterAddress, masterArgs, &reply)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -101,7 +100,7 @@ func (t *GLFSClient) Read(filename string, outputPath string) []byte {
 
 	var reply common.ReadFileReplyMaster
 
-	err := t.masterClient.Call("MasterServer.Read", masterArgs, &reply)
+	err := common.DialAndCall("MasterServer.Read", t.masterAddress, masterArgs, &reply)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -146,7 +145,7 @@ func (t *GLFSClient) Write(filename string, offset uint64, data []byte) {
 
 	var reply common.ClientChunkInfo
 
-	err := t.masterClient.Call("MasterServer.GetPrimary", masterArgs, &reply)
+	err := common.DialAndCall("MasterServer.GetPrimary", t.masterAddress, masterArgs, &reply)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -184,18 +183,12 @@ func (t *GLFSClient) Write(filename string, offset uint64, data []byte) {
 
 // Returns updateId used to identify this update the chunkServer
 func (t *GLFSClient) sendUpdateToChunkServer(location string, args *common.WriteArgsChunk) uint64 {
-	// connect to master server using tcp
-	chunkClient, err := rpc.DialHTTP("tcp", location)
-	if err != nil {
-		log.Fatal("Connecting to chunk client failed: ", err)
-	}
-
 	// This is the changeId used to reference this change at chunkserver
 	// later in commitWrite call, this will be used to apply this update.
 	reply := &common.WriteReplyChunk{}
 
 	log.Printf("Writing chunk chunkServer at %v with args %v", location, args)
-	err = chunkClient.Call("ChunkServer.Write", args, &reply)
+	err := common.DialAndCall("ChunkServer.Write", location, args, &reply)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -206,18 +199,12 @@ func (t *GLFSClient) sendUpdateToChunkServer(location string, args *common.Write
 
 // Returns updateId used to identify this update the chunkServer
 func (t *GLFSClient) commitWriteAtPrimary(primaryAddr string, args *common.CommitWriteArgsChunk) bool {
-	// connect to master server using tcp
-	chunkClient, err := rpc.DialHTTP("tcp", primaryAddr)
-	if err != nil {
-		log.Fatal("Connecting to chunk client failed: ", err)
-	}
-
 	// This is the changeId used to reference this change at chunkserver
 	// later in commitWrite call, this will be used to apply this update.
 	var reply bool
 
 	log.Printf("CommitWrite at %v with args %v", primaryAddr, args)
-	err = chunkClient.Call("ChunkServer.CommitWrite", args, &reply)
+	err := common.DialAndCall("ChunkServer.CommitWrite", primaryAddr, args, &reply)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -227,16 +214,10 @@ func (t *GLFSClient) commitWriteAtPrimary(primaryAddr string, args *common.Commi
 }
 
 func (t *GLFSClient) sendFileToChunkServer(location string, args *common.CreateFileArgsChunk, wg *sync.WaitGroup) {
-	// connect to master server using tcp
-	chunkClient, err := rpc.DialHTTP("tcp", location)
-	if err != nil {
-		log.Fatal("Connecting to chunk client failed: ", err)
-	}
-
 	var reply bool
 
 	log.Printf("Uploading file to chunkServer at %v", location)
-	err = chunkClient.Call("ChunkServer.Create", args, &reply)
+	err := common.DialAndCall("ChunkServer.Create", location, args, &reply)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -246,16 +227,10 @@ func (t *GLFSClient) sendFileToChunkServer(location string, args *common.CreateF
 }
 
 func (t *GLFSClient) readFileFromChunkServer(location string, args *common.ReadFileArgsChunk, content *[]byte, wg *sync.WaitGroup) {
-	// connect to master server using tcp
-	chunkClient, err := rpc.DialHTTP("tcp", location)
-	if err != nil {
-		log.Fatal("Connecting to chunk client failed: ", err)
-	}
-
 	var reply common.ReadFileReplyChunk
 
 	log.Printf("Downloading file from chunkServer at %v", location)
-	err = chunkClient.Call("ChunkServer.Read", args, &reply)
+	err := common.DialAndCall("ChunkServer.Read", location, args, &reply)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -268,11 +243,5 @@ func (t *GLFSClient) readFileFromChunkServer(location string, args *common.ReadF
 
 // Initialize client with default configs
 func (t *GLFSClient) Initialize() {
-	// connect to master server using tcp
-	masterClient, err := rpc.DialHTTP("tcp", common.GetMasterServerAddress())
-	if err != nil {
-		log.Fatal("Connecting to master client failed: ", err)
-	}
-	// persist the connection
-	t.masterClient = masterClient
+	t.masterAddress = common.GetMasterServerAddress()
 }

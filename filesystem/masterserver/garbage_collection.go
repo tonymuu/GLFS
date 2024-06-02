@@ -4,7 +4,6 @@ import (
 	"glfs/common"
 	"glfs/protobufs/pb"
 	"log"
-	"net/rpc"
 	"strings"
 	"time"
 )
@@ -28,7 +27,6 @@ func (t *MasterServer) CleanupDeletedFiles() {
 		log.Printf("Deleted all chunks for %v. Now cleaning up state", file.FileName)
 
 		delete(t.State.FileMetadata, fileName)
-
 	}
 }
 
@@ -43,20 +41,13 @@ func (t *MasterServer) deleteChunks(file *pb.File) {
 func (t *MasterServer) deleteChunk(chunkHandle uint64, chunk *pb.Chunk) {
 	for _, sid := range chunk.ReplicaServerIds {
 		chunkServer := t.State.ChunkServers[sid]
-
-		// connect to master server using tcp
-		chunkClient, err := rpc.DialHTTP("tcp", chunkServer.ServerAddress)
-		if err != nil {
-			log.Fatal("Connecting to chunk client failed: ", err)
-		}
-
 		args := &common.DeleteFileArgsChunk{
 			ChunkHandle: chunkHandle,
 		}
 		var reply bool
 
 		log.Printf("Deleting file from chunkServer at %v", chunkServer.ServerAddress)
-		err = chunkClient.Call("ChunkServer.Delete", args, &reply)
+		err := common.DialAndCall("ChunkServer.Delete", chunkServer.ServerAddress, args, &reply)
 		if err != nil {
 			log.Fatal(err)
 		}

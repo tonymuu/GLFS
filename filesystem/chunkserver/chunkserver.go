@@ -154,17 +154,13 @@ func (t *ChunkServer) getChunkFilePath(chunkHandle uint64) string {
 
 func (t *ChunkServer) commitWritesReplicas(replicas map[string]uint64) {
 	for addr, updateId := range replicas {
-		chunkClient, err := rpc.DialHTTP("tcp", addr)
-		if err != nil {
-			log.Fatal("dialing:", err)
-		}
 		// Synchronous call
 		args := &common.CommitWriteArgsChunk{
 			IsPrimary: false,
 			UpdateId:  updateId,
 		}
 		var reply bool
-		err = chunkClient.Call("ChunkServer.CommitWrite", args, &reply)
+		err := common.DialAndCall("ChunkServer.CommitWrite", addr, args, &reply)
 		if err != nil {
 			log.Fatal(err)
 		}

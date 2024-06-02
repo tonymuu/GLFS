@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // There must be a running GFS cluster
@@ -64,8 +65,8 @@ func runEvaluations(scenario string, clientCount string, iterations string, mast
 		duration = ReadOnly(clients, it, filename)
 	}
 
-	outputStr := fmt.Sprintf("Scenario:%v, clientCount:%v, iterations:%v, duration:%v, masterAvailability:%v, filename:%v",
-		scenario, clientCount, it, duration, masterAvailability, filename)
+	outputStr := fmt.Sprintf("RunID:%v, Scenario:%v, clientCount:%v, iterations:%v, duration:%v, masterAvailability:%v, filename:%v",
+		time.Now().Unix(), scenario, clientCount, it, duration, masterAvailability, filename)
 	outputEvalResult(outputStr)
 }
 
