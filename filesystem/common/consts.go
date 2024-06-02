@@ -1,7 +1,7 @@
 package common
 
-// Use 64KB as chunk size for testing
-const ChunkSize = 64 * 1024
+// Use 1MB as chunk size for testing
+const ChunkSize = 1 * 1024 * 1024
 
 const ChunkServerExpirationTimeSeconds = 60 * 60 * 7
 

@@ -23,6 +23,7 @@ func main() {
 	clientCount := flag.String("clientcount", "", "Which evaluation scenarios to run")
 	iterations := flag.String("iterations", "", "How many iterations per client?")
 	masterAvailability := flag.String("availability", "", "how often does master fail?")
+	filename := flag.String("filename", "", "which file to test on?")
 
 	flag.Parse()
 
@@ -43,12 +44,12 @@ func main() {
 		log.SetOutput(f)
 		log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
-		runEvaluations(*scenario, *clientCount, *iterations, *masterAvailability)
+		runEvaluations(*scenario, *clientCount, *iterations, *masterAvailability, *filename)
 		return
 	}
 }
 
-func runEvaluations(scenario string, clientCount string, iterations string, masterAvailability string) {
+func runEvaluations(scenario string, clientCount string, iterations string, masterAvailability string, filename string) {
 	// init clients
 	count, _ := strconv.Atoi(clientCount)
 	it, _ := strconv.Atoi(iterations)
@@ -60,10 +61,11 @@ func runEvaluations(scenario string, clientCount string, iterations string, mast
 	var duration int64
 	switch scenario {
 	case "readonly":
-		duration = ReadOnly(clients, it)
+		duration = ReadOnly(clients, it, filename)
 	}
 
-	outputStr := fmt.Sprintf("Scenario:%v, clientCount:%v, iterations:%v, duration:%v, masterAvailability:%v", scenario, clientCount, it, duration, masterAvailability)
+	outputStr := fmt.Sprintf("Scenario:%v, clientCount:%v, iterations:%v, duration:%v, masterAvailability:%v, filename:%v",
+		scenario, clientCount, it, duration, masterAvailability, filename)
 	outputEvalResult(outputStr)
 }
 

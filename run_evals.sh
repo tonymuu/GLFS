@@ -6,6 +6,7 @@ clientcount=$2
 iterations=$3
 chunkservercount=$4
 masteravailability=$5
+filename=$6
 
 # # clean up logs
 # rm -r ./eval
@@ -24,9 +25,13 @@ echo "Setting up cluster with $chunkservercount chunk servers"
 /bin/bash setup_cluster.sh $chunkservercount
 
 # run evals
-./build/app -mode e -scenario $scenario -clientcount $clientcount -iterations $iterations -availability $masteravailability
+./build/app -mode e -scenario $scenario -clientcount $clientcount -iterations $iterations -availability $masteravailability -filename $filename
 
 # terminate cluster
 echo "Cleaning up"
 /bin/bash terminate.sh
 echo "Finished running scenario."
+
+
+# script to generate file of size for testing
+# dd if=/dev/zero of=tmp/app/test_2.dat  bs=24M  count=1

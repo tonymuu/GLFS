@@ -1,16 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"glfs/client"
 	"glfs/common"
 	"sync"
 	"time"
 )
 
-func ReadOnly(clients []*client.GLFSClient, iterations int) int64 {
+func ReadOnly(clients []*client.GLFSClient, iterations int, filename string) int64 {
 	// upload a test file with one client
-	inputPath := common.GetTmpPath("app", "test_0.dat")
-	outputPath := common.GetTmpPath("app", "test_0.dat.out")
+	inputPath := common.GetTmpPath("app", filename)
+	outputPath := common.GetTmpPath("app", fmt.Sprintf("%v.out", filename))
 
 	clients[0].Create(inputPath)
 
@@ -24,9 +25,9 @@ func ReadOnly(clients []*client.GLFSClient, iterations int) int64 {
 		// each client synchronously sends 100 read requests
 		go func() {
 			for j := 0; j < iterations; j++ {
-				clients[j].Read("test_0.dat", outputPath)
-				wg.Done()
+				clients[j].Read(filename, outputPath)
 			}
+			wg.Done()
 		}()
 	}
 	wg.Wait()
