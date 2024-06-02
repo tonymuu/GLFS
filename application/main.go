@@ -22,6 +22,7 @@ func main() {
 	scenario := flag.String("scenario", "", "Which evaluation scenarios to run")
 	clientCount := flag.String("clientcount", "", "Which evaluation scenarios to run")
 	iterations := flag.String("iterations", "", "How many iterations per client?")
+	masterAvailability := flag.String("availability", "", "how often does master fail?")
 
 	flag.Parse()
 
@@ -42,12 +43,12 @@ func main() {
 		log.SetOutput(f)
 		log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
-		runEvaluations(*scenario, *clientCount, *iterations)
+		runEvaluations(*scenario, *clientCount, *iterations, *masterAvailability)
 		return
 	}
 }
 
-func runEvaluations(scenario string, clientCount string, iterations string) {
+func runEvaluations(scenario string, clientCount string, iterations string, masterAvailability string) {
 	// init clients
 	count, _ := strconv.Atoi(clientCount)
 	it, _ := strconv.Atoi(iterations)
@@ -62,7 +63,7 @@ func runEvaluations(scenario string, clientCount string, iterations string) {
 		duration = ReadOnly(clients, it)
 	}
 
-	outputStr := fmt.Sprintf("Scenario:%v, clientCount:%v, iterations:%v duration:%v", scenario, clientCount, it, duration)
+	outputStr := fmt.Sprintf("Scenario:%v, clientCount:%v, iterations:%v, duration:%v, masterAvailability:%v", scenario, clientCount, it, duration, masterAvailability)
 	outputEvalResult(outputStr)
 }
 
@@ -127,7 +128,7 @@ func md5sum(filePath string) (string, error) {
 }
 
 func outputEvalResult(res string) {
-	f, err := os.OpenFile(fmt.Sprintf("%v/eval/healthy.txt", common.GetRootDir()), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	f, err := os.OpenFile(fmt.Sprintf("%v/eval/eval.txt", common.GetRootDir()), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}
