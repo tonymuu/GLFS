@@ -2,10 +2,6 @@
 
 NUM_CHUNK_SERVERS=$1
 
-# clean and build the executable
-go clean
-go build -C ./filesystem/ -o ../build/glfs
-
 # clean up logs and tmp folders
 rm -r ./logs
 rm -r ./tmp/chunk

@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // There must be a running GFS cluster
@@ -20,6 +21,7 @@ func main() {
 	mode := flag.String("mode", "", "running mode, i for interactive.")
 	scenario := flag.String("scenario", "", "Which evaluation scenarios to run")
 	clientCount := flag.String("clientcount", "", "Which evaluation scenarios to run")
+	iterations := flag.String("iterations", "", "How many iterations per client?")
 
 	flag.Parse()
 
@@ -31,25 +33,37 @@ func main() {
 
 	// we can also run the app with predefined scenarios for perf evaluations.
 	if *mode == "e" {
-		runEvaluations(*scenario, *clientCount)
+		f, err := os.OpenFile(fmt.Sprintf("%v/logs/%v", common.GetRootDir(), *scenario), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+		if err != nil {
+			log.Fatalf("error opening file: %v", err)
+		}
+		defer f.Close()
+
+		log.SetOutput(f)
+		log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
+		runEvaluations(*scenario, *clientCount, *iterations)
 		return
 	}
 }
 
-func runEvaluations(scenario string, clientCount string) {
-	f, err := os.OpenFile(fmt.Sprintf("%v/eval/%v", common.GetRootDir(), scenario), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
-	}
-	defer f.Close()
-
-	log.SetOutput(f)
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
-
+func runEvaluations(scenario string, clientCount string, iterations string) {
+	// init clients
 	count, _ := strconv.Atoi(clientCount)
-	if scenario == "readonly" {
-		ReadOnly(count)
+	it, _ := strconv.Atoi(iterations)
+
+	log.Printf("Started initialzing clients")
+	clients := initClients(count)
+	log.Printf("Initializing clients completed")
+
+	var duration int64
+	switch scenario {
+	case "readonly":
+		duration = ReadOnly(clients, it)
 	}
+
+	outputStr := fmt.Sprintf("Scenario:%v, clientCount:%v, iterations:%v duration:%v", scenario, clientCount, it, duration)
+	outputEvalResult(outputStr)
 }
 
 func runInteractiveApp() {
@@ -110,4 +124,32 @@ func md5sum(filePath string) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+func outputEvalResult(res string) {
+	f, err := os.OpenFile(fmt.Sprintf("%v/eval/healthy.txt", common.GetRootDir()), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	defer f.Close()
+
+	f.WriteString(res + "\n")
+}
+
+func initClients(clientCount int) []*client.GLFSClient {
+	clients := make([]*client.GLFSClient, clientCount)
+
+	var wg sync.WaitGroup
+	for i := 0; i < clientCount; i++ {
+		wg.Add(1)
+
+		go func() {
+			clients[i] = &client.GLFSClient{}
+			clients[i].Initialize()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	return clients
 }

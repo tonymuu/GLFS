@@ -2,47 +2,37 @@ package main
 
 import (
 	"glfs/client"
-	"log"
+	"glfs/common"
 	"sync"
+	"time"
 )
 
-func ReadOnly(clientCount int) {
-	log.Printf("Started initialzing clients")
-	clients := initClients(clientCount)
-	log.Printf("Initializing clients completed")
+func ReadOnly(clients []*client.GLFSClient, iterations int) int64 {
+	// upload a test file with one client
+	inputPath := common.GetTmpPath("app", "test_0.dat")
+	outputPath := common.GetTmpPath("app", "test_0.dat.out")
+
+	clients[0].Create(inputPath)
+
+	// start timer to eval read only scenario
+	startTime := time.Now().UnixMilli()
 
 	var wg sync.WaitGroup
-	log.Printf("All clients started reading")
-	for i := 0; i < clientCount; i++ {
+	for i := 0; i < len(clients); i++ {
 		wg.Add(1)
 
 		// each client synchronously sends 100 read requests
 		go func() {
-			for j := 0; j < 100; j++ {
-				clients[j].Read("test_0.dat", ".")
+			for j := 0; j < iterations; j++ {
+				clients[j].Read("test_0.dat", outputPath)
 				wg.Done()
 			}
 		}()
 	}
 	wg.Wait()
 
-	log.Printf("All clients finished reading")
-}
+	// end timer
+	endTime := time.Now().UnixMilli()
 
-func initClients(clientCount int) []*client.GLFSClient {
-	clients := make([]*client.GLFSClient, clientCount)
-
-	var wg sync.WaitGroup
-	for i := 0; i < clientCount; i++ {
-		wg.Add(1)
-
-		go func() {
-			clients[i] = &client.GLFSClient{}
-			clients[i].Initialize()
-			wg.Done()
-		}()
-	}
-	wg.Wait()
-
-	return clients
+	return endTime - startTime
 }

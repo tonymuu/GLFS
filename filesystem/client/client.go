@@ -63,6 +63,7 @@ func (t *GLFSClient) Create(filepath string) bool {
 		}
 
 		var wg sync.WaitGroup
+		wg.Add(1)
 		go t.sendFileToChunkServer(chunkInfo.PrimaryLocation, args, &wg)
 		for _, replicaLocation := range chunkInfo.ReplicaLocations {
 			wg.Add(1)
