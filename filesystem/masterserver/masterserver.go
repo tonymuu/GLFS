@@ -35,6 +35,8 @@ func (t *MasterServer) Ping(args *common.PingArgs, reply *bool) error {
 		TimeStampLastPing: time.Now().Unix(),
 	}
 
+	t.flushState()
+
 	log.Printf("Updated ChunkServers info. New state: %v", t.State.ChunkServers)
 
 	*reply = true
@@ -59,10 +61,12 @@ func (t *MasterServer) Create(args *common.CreateFileArgsMaster, reply *common.C
 
 	chunkServerIds := make([]uint32, len(t.State.ChunkServers))
 	i := 0
+	t.chunkServerMutex.RLock()
 	for chunkServerId := range t.State.ChunkServers {
 		chunkServerIds[i] = chunkServerId
 		i++
 	}
+	t.chunkServerMutex.RUnlock()
 
 	t.chunkMutex.Lock()
 	defer t.chunkMutex.Unlock()
@@ -280,14 +284,17 @@ func checkpointPath() string {
 
 func InitializeMasterServer() {
 	server := new(MasterServer)
-	server.Initialize()
 
 	// On master start, it should check to see if there is any old state.
 	stateDir := common.GetTmpPath("master", "")
 	err := os.MkdirAll(stateDir, os.ModePerm)
 	common.Check(err)
 
+	// First try to recover state
 	server.recoverState()
+
+	// If recovered state is nil, go ahead and initialize blank state
+	server.Initialize()
 
 	// set up background job for cleaning up deleted files
 	garbageCollectionWorkerControl := make(chan int)

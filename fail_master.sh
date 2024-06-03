@@ -10,6 +10,7 @@ while true; do
     if [ "$masteravailability" -lt "$roll" ]; then
         echo "roll: $roll greater than masteravailability $masteravailability, killing master..."
         kill $(ps aux | grep '[g]lfs -role master' | awk '{print $2}')
+    else echo "Roll $roll less than masteravailability $masteravailability, doing nothing";
     fi
 
     # only executes every 3 seconds

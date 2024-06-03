@@ -21,11 +21,11 @@ func ReadOnly(clients []*client.GLFSClient, iterations int, filename string) int
 	var wg sync.WaitGroup
 	for i := 0; i < len(clients); i++ {
 		wg.Add(1)
-
+		client := clients[i]
 		// each client synchronously sends 100 read requests
 		go func() {
 			for j := 0; j < iterations; j++ {
-				clients[j].Read(filename, outputPath)
+				client.Read(filename, outputPath)
 			}
 			wg.Done()
 		}()

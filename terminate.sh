@@ -1,3 +1,5 @@
+#!/bin/bash
+
 kill $(ps aux | grep [g]lfs | awk '{print $2}')
 kill $(ps aux | grep [m]onitor | awk '{print $2}')
 kill $(ps aux | grep [f]ail_master | awk '{print $2}')

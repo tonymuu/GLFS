@@ -24,13 +24,18 @@ echo "Setting up cluster with $chunkservercount chunk servers"
 # setup cluster
 /bin/bash setup_cluster.sh $chunkservercount
 
+echo "Start running clients"
 # run evals
 ./build/app -mode e -scenario $scenario -clientcount $clientcount -iterations $iterations -availability $masteravailability -filename $filename
+echo "Finished running clients"
 
 # terminate cluster
 echo "Cleaning up"
 /bin/bash terminate.sh
 echo "Finished running scenario."
+
+printf '=%.0s' {1..100}
+printf '\n'
 
 
 # script to generate file of size for testing
