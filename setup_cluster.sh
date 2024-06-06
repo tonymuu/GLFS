@@ -16,6 +16,7 @@ rm -r ./tmp/master
 mkdir ./logs
 
 echo "Generating a testing file of 24M at tmp/app/test_2.dat"
+mkdir ./tmp/app
 dd if=/dev/zero of=tmp/app/test_2.dat  bs=24M  count=1
 
 echo "Starting master..."
