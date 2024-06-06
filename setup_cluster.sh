@@ -15,6 +15,9 @@ rm -r ./tmp/master
 # create dir for logs
 mkdir ./logs
 
+echo "Generating a testing file of 24M at tmp/app/test_2.dat"
+dd if=/dev/zero of=tmp/app/test_2.dat  bs=24M  count=1
+
 echo "Starting master..."
 ./build/glfs -role master &
 echo "master started."
