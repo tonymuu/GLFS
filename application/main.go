@@ -78,8 +78,8 @@ func runInteractiveApp() {
 	client := client.GLFSClient{}
 	client.Initialize()
 
-	inputPath := common.GetTmpPath("app", "test_0.dat")
-	outputPath := common.GetTmpPath("app", "test_0.dat.out")
+	inputPath := common.GetTmpPath("app", "test_2.dat")
+	outputPath := common.GetTmpPath("app", "test_2.dat.out")
 
 	reader := bufio.NewReader(os.Stdin)
 
@@ -92,12 +92,12 @@ func runInteractiveApp() {
 		case "c":
 			client.Create(inputPath)
 		case "d":
-			client.Delete("test_0.dat")
+			client.Delete("test_2.dat")
 		case "r":
-			client.Read("test_0.dat", outputPath)
+			client.Read("test_2.dat", outputPath)
 			checkSum(inputPath, outputPath)
 		case "w":
-			client.Write("test_0.dat", 0, []byte{})
+			client.Write("test_2.dat", 0, []byte{})
 		case "q":
 			os.Exit(0)
 

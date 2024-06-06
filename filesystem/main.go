@@ -55,7 +55,6 @@ func main() {
 	case "client":
 		client := client.GLFSClient{}
 		client.Initialize()
-		client.Write("test_0.dat", 0, []byte{})
 	default:
 		log.Fatal("role Can only be master, chunk, or client")
 	}
