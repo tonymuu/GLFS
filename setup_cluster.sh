@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ "$#" -lt 1 ]; then
+    echo "You must provide the number of chunk servers as an argument. Something like \"/bin/bash setup_cluster.sh\" 7"
+    exit 0
+fi
+
 NUM_CHUNK_SERVERS=$1
 
 # clean up logs and tmp folders
@@ -29,7 +34,11 @@ done
 sleep 3
 
 # Now start up the monitor
-/bin/bash monitor.sh &
+rm ./monitor_output.txt
+/bin/bash monitor.sh &>> monitor_output.txt &
+echo "Monitor started and outputting logs at .monitor_output.txt."
+
+echo "Cluster is running in background. Run the terminate.sh script to kill all GLFS processes"
 
 # compile proto bufs
 # protoc -I=. --go_out=. ./masterserver.proto

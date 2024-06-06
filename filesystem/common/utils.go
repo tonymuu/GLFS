@@ -3,6 +3,8 @@ package common
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 )
 
 func GetMasterServerAddress() string {
@@ -14,7 +16,12 @@ func GetChunkServerAddress(id uint32) string {
 }
 
 func GetRootDir() string {
-	return "/home/mutony/Projects/glfs"
+	ex, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	exPath := filepath.Dir(ex)
+	return filepath.Clean(filepath.Join(exPath, ".."))
 }
 
 func GetTmpPath(subdir string, filename string) string {

@@ -1,19 +1,22 @@
 #!/bin/bash
-AVAILABILITY_LOW=0
+AVAILABILITY_LOW=40
 AVAILABILITY_HIGH=100
 AVAILABILITY_STEP=20
 
-CLIENT_COUNT_LOW=1
-CLIENT_COUNT_HIGH=4
-CLIENT_COUNT_STEP=1
+CLIENT_COUNT_LOW=2
+CLIENT_COUNT_HIGH=8
+CLIENT_COUNT_STEP=2
 
 ITERATIONS_LOW=20
 ITERATIONS_HIGH=20
 ITERATIONS_STEP=24
 
-SCENARIO=writeonly
+SCENARIO=readonly
 
 rm ./eval_output.txt
+
+echo "Running report now. Checkout put at ./eval_output.txt"
+echo "Run the terminate.sh script to kill all GLFS related processes."
 
 i=1
 for avail in $(seq $AVAILABILITY_HIGH -$AVAILABILITY_STEP $AVAILABILITY_LOW); do
