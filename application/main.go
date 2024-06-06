@@ -63,6 +63,10 @@ func runEvaluations(scenario string, clientCount string, iterations string, mast
 	switch scenario {
 	case "readonly":
 		duration = ReadOnly(clients, it, filename)
+	case "writeonly":
+		duration = WriteOnly(clients, it, filename)
+	case "readwrite":
+		duration = ReadWrite(clients, it, filename)
 	}
 
 	outputStr := fmt.Sprintf("RunID:%v, Scenario:%v, clientCount:%v, iterations:%v, duration:%v, masterAvailability:%v, filename:%v",

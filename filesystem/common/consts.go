@@ -15,3 +15,5 @@ const LeaseDuration int64 = 30
 
 // For testing convenience, set it to 5 seconds. Canonically this is 3 days in the GFS paper.
 const FileRetentionPeriod = 5
+
+const Test1FileSizeByte = 46 * 1024 * 1014
